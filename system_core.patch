@@ -1,0 +1,26 @@
+From 02f927c56b6f58059cef0634c3805999d7a14153 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 25 Aug 2016 21:31:18 -0700
+Subject: [PATCH] core: Don't try to flash recovery
+
+Just don't.  Would totally screw up the device if it succeeded...
+---
+ rootdir/init.rc | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+index 3466dce..b3709d6 100644
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -636,6 +636,6 @@ on property:ro.debuggable=1
+     chmod 0773 /data/misc/trace
+     start console
+ 
+-service flash_recovery /system/bin/install-recovery.sh
+-    class main
+-    oneshot
++#service flash_recovery /system/bin/install-recovery.sh
++#    class main
++#    oneshot
+-- 
+2.7.4

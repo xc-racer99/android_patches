@@ -1,0 +1,52 @@
+From ed0b0cad2091acb2b8c57622ae5ca2cfc6251f59 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sat, 27 Aug 2016 09:26:34 -0700
+Subject: [PATCH] sepolicy: Allow some execmods
+
+Our blobs are so ancient, they need this...
+---
+ domain.te | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/domain.te b/domain.te
+index 1ac33f1..5d35c8f 100644
+--- a/domain.te
++++ b/domain.te
+@@ -300,6 +300,7 @@ neverallow {
+   -dalvikcache_data_file
+   -system_data_file # shared libs in apks
+   -apk_data_file
++  -system_app_data_file
+ }:file no_x_file_perms;
+ 
+ neverallow { domain userdebug_or_eng(`-shell') } nativetest_data_file:file no_x_file_perms;
+@@ -308,7 +309,7 @@ neverallow { domain userdebug_or_eng(`-shell') } nativetest_data_file:file no_x_
+ neverallow { domain -init } property_data_file:dir no_w_dir_perms;
+ neverallow { domain -init } property_data_file:file { no_w_file_perms no_x_file_perms };
+ neverallow { domain -init } property_type:file { no_w_file_perms no_x_file_perms };
+-neverallow { domain -init } properties_device:file { no_w_file_perms no_x_file_perms };
++neverallow { domain -init } properties_device:file { no_w_file_perms };
+ neverallow { domain -init } properties_serial:file { no_w_file_perms no_x_file_perms };
+ 
+ # Only recovery should be doing writes to /system
+@@ -426,7 +427,7 @@ neverallow { domain userdebug_or_eng(`-dumpstate -shell -su') } su_exec:file no_
+ # The only exceptions are for NDK text relocations associated with
+ # https://code.google.com/p/android/issues/detail?id=23203
+ # which, long term, need to go away.
+-neverallow * {
++neverallow { domain -audioserver -gpsd -mediaserver -rild -system_server } {
+   file_type
+   -system_data_file
+   -apk_data_file
+@@ -441,7 +442,7 @@ neverallow * self:process { execstack execheap };
+ 
+ # prohibit non-zygote spawned processes from using shared libraries
+ # with text relocations. b/20013628 .
+-neverallow { domain -appdomain } file_type:file execmod;
++neverallow { domain -appdomain -audioserver -gpsd -mediaserver -rild -system_server } file_type:file execmod;
+ 
+ neverallow { domain -init } proc:{ file dir } mounton;
+ 
+-- 
+2.7.4
+

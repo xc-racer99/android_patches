@@ -1,7 +1,7 @@
-From 70bfccbcd21cc7e12a853116a6e3117d66583af7 Mon Sep 17 00:00:00 2001
+From 0a503347de62cc32ef16ea71636312a034a686f7 Mon Sep 17 00:00:00 2001
 From: Kyle Repinski <repinski23@gmail.com>
 Date: Wed, 10 Jun 2015 18:49:57 -0500
-Subject: [PATCH 1/2] egl: Add back b/10194508 workaround.
+Subject: [PATCH 1/3] egl: Add back b/10194508 workaround.
 
 This was removed because it did not pass CTS and was applied across the board
 for all OMAP4 devices, but some still-shipping OMAP4 devices don't need it
@@ -26,10 +26,10 @@ Conflicts:
  2 files changed, 14 insertions(+)
 
 diff --git a/opengl/libs/Android.mk b/opengl/libs/Android.mk
-index 18ad300..918a073 100644
+index eb86860..2881388 100644
 --- a/opengl/libs/Android.mk
 +++ b/opengl/libs/Android.mk
-@@ -47,6 +47,11 @@ LOCAL_CFLAGS += -DEGL_TRACE=1
+@@ -45,6 +45,11 @@ LOCAL_CFLAGS += -fvisibility=hidden
  ifeq ($(BOARD_ALLOW_EGL_HIBERNATION),true)
    LOCAL_CFLAGS += -DBOARD_ALLOW_EGL_HIBERNATION
  endif
@@ -42,10 +42,10 @@ index 18ad300..918a073 100644
    LOCAL_CFLAGS += -DMAX_EGL_CACHE_ENTRY_SIZE=$(MAX_EGL_CACHE_ENTRY_SIZE)
  endif
 diff --git a/opengl/libs/EGL/eglApi.cpp b/opengl/libs/EGL/eglApi.cpp
-index cdec565..1b702bc 100644
+index e793852..54efe6e 100644
 --- a/opengl/libs/EGL/eglApi.cpp
 +++ b/opengl/libs/EGL/eglApi.cpp
-@@ -466,6 +466,14 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
+@@ -474,6 +474,14 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
          EGLint format = HAL_PIXEL_FORMAT_RGBA_8888;
          android_dataspace dataSpace = HAL_DATASPACE_UNKNOWN;
  
@@ -60,7 +60,7 @@ index cdec565..1b702bc 100644
          EGLint a = 0;
          cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_ALPHA_SIZE, &a);
          if (a > 0) {
-@@ -484,6 +492,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
+@@ -492,6 +500,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
                  format = HAL_PIXEL_FORMAT_RGBX_8888;
              }
          }
@@ -69,13 +69,13 @@ index cdec565..1b702bc 100644
          // now select a corresponding sRGB format if needed
          if (attrib_list && dp->haveExtension("EGL_KHR_gl_colorspace")) {
 -- 
-2.1.4
+2.7.4
 
 
-From baf3a0dbb88eef90a420bddccd5a319301378f77 Mon Sep 17 00:00:00 2001
+From 8e14bb292794ab48bb577655245ba45542fb6209 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 12 Apr 2016 20:11:51 -0700
-Subject: [PATCH 2/2] surfaceflinger: Comment out context priority error
+Subject: [PATCH 2/3] surfaceflinger: Comment out context priority error
 
 Since we're compiling with -Wall, we can't have the warning
 ---
@@ -83,7 +83,7 @@ Since we're compiling with -Wall, we can't have the warning
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/services/surfaceflinger/RenderEngine/RenderEngine.cpp b/services/surfaceflinger/RenderEngine/RenderEngine.cpp
-index 7cd42e4..6039961 100644
+index 27357b9..0d6a674 100644
 --- a/services/surfaceflinger/RenderEngine/RenderEngine.cpp
 +++ b/services/surfaceflinger/RenderEngine/RenderEngine.cpp
 @@ -83,7 +83,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
@@ -96,4 +96,133 @@ index 7cd42e4..6039961 100644
  #endif
  #endif
 -- 
-2.1.4
+2.7.4
+
+
+From 73d7dc9ee12eab57eecbfe999d1ae6f1dffb88f5 Mon Sep 17 00:00:00 2001
+From: Simon Shields <keepcalm444@gmail.com>
+Date: Thu, 3 Dec 2015 20:34:15 +1100
+Subject: [PATCH 3/3] libbinder: allow devices to disable ashmem size tracking
+
+The addition of ashmem size tracking has resulted in a broken ABI
+for old blobs.
+
+Change-Id: Ife8514be1ba639c4061de38b59794c46bcc2d7f8
+---
+ include/binder/Parcel.h |  2 ++
+ libs/binder/Parcel.cpp  | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/include/binder/Parcel.h b/include/binder/Parcel.h
+index 1c355c4..bd23069 100644
+--- a/include/binder/Parcel.h
++++ b/include/binder/Parcel.h
+@@ -496,8 +496,10 @@ public:
+         inline void* data() { return mData; }
+     };
+ 
++#ifndef DISABLE_ASHMEM_TRACKING
+ private:
+     size_t mOpenAshmemSize;
++#endif
+ 
+ public:
+     // TODO: Remove once ABI can be changed.
+diff --git a/libs/binder/Parcel.cpp b/libs/binder/Parcel.cpp
+index e88ae29..f0761ef 100644
+--- a/libs/binder/Parcel.cpp
++++ b/libs/binder/Parcel.cpp
+@@ -567,7 +567,11 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
+ 
+             flat_binder_object* flat
+                 = reinterpret_cast<flat_binder_object*>(mData + off);
++#ifndef DISABLE_ASHMEM_TRACKING
+             acquire_object(proc, *flat, this, &mOpenAshmemSize);
++#else
++            acquire_object(proc, *flat, this);
++#endif
+ 
+             if (flat->type == BINDER_TYPE_FD) {
+                 // If this is a file descriptor, we need to dup it so the
+@@ -1329,7 +1333,11 @@ restart_write:
+         // Need to write meta-data?
+         if (nullMetaData || val.binder != 0) {
+             mObjects[mObjectsSize] = mDataPos;
++#ifndef DISABLE_ASHMEM_TRACKING
+             acquire_object(ProcessState::self(), val, this, &mOpenAshmemSize);
++#else
++            acquire_object(ProcessState::self(), val, this);
++#endif
+             mObjectsSize++;
+         }
+ 
+@@ -2257,7 +2265,11 @@ void Parcel::releaseObjects()
+         i--;
+         const flat_binder_object* flat
+             = reinterpret_cast<flat_binder_object*>(data+objects[i]);
++#ifndef DISABLE_ASHMEM_TRACKING
+         release_object(proc, *flat, this, &mOpenAshmemSize);
++#else
++        release_object(proc, *flat, this);
++#endif
+     }
+ }
+ 
+@@ -2271,7 +2283,11 @@ void Parcel::acquireObjects()
+         i--;
+         const flat_binder_object* flat
+             = reinterpret_cast<flat_binder_object*>(data+objects[i]);
++#ifndef DISABLE_ASHMEM_TRACKING
+         acquire_object(proc, *flat, this, &mOpenAshmemSize);
++#else
++        acquire_object(proc, *flat, this);
++#endif
+     }
+ }
+ 
+@@ -2462,7 +2478,11 @@ status_t Parcel::continueWrite(size_t desired)
+                     // will need to rescan because we may have lopped off the only FDs
+                     mFdsKnown = false;
+                 }
++#ifndef DISABLE_ASHMEM_TRACKING
+                 release_object(proc, *flat, this, &mOpenAshmemSize);
++#else
++                release_object(proc, *flat, this);
++#endif
+             }
+             binder_size_t* objects =
+                 (binder_size_t*)realloc(mObjects, objectsSize*sizeof(binder_size_t));
+@@ -2547,7 +2567,9 @@ void Parcel::initState()
+     mFdsKnown = true;
+     mAllowFds = true;
+     mOwner = NULL;
++#ifndef DISABLE_ASHMEM_TRACKING
+     mOpenAshmemSize = 0;
++#endif
+ 
+     // racing multiple init leads only to multiple identical write
+     if (gMaxFds == 0) {
+@@ -2582,12 +2604,20 @@ size_t Parcel::getBlobAshmemSize() const
+     // This used to return the size of all blobs that were written to ashmem, now we're returning
+     // the ashmem currently referenced by this Parcel, which should be equivalent.
+     // TODO: Remove method once ABI can be changed.
++#ifndef DISABLE_ASHMEM_TRACKING
+     return mOpenAshmemSize;
++#else
++    return 0;
++#endif
+ }
+ 
+ size_t Parcel::getOpenAshmemSize() const
+ {
++#ifndef DISABLE_ASHMEM_TRACKING
+     return mOpenAshmemSize;
++#else
++    return 0;
++#endif
+ }
+ 
+ // --- Parcel::Blob ---
+-- 
+2.7.4
+

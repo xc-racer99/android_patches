@@ -1,9 +1,9 @@
 From 2c3e582ee3cd536bd0a6f41f1781a5cde9bbc071 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 15 Dec 2015 18:57:03 -0800
-Subject: [PATCH 1/3] recovery: Do not pack relocations for flashutils
+Subject: [PATCH 1/2] recovery: Do not pack relocations for flashutils
 
-Needed for Marshmallow
+Needed for Marshmallow+
 
 Change-Id: Ie26150c26cb7ae8f4210f4f34c2f78dd6ad56eb0
 ---
@@ -45,7 +45,7 @@ index ab552b1..75c7cb0 100644
 From b322f8cb7b8a4766ad9102deedff54e9eb5e0bae Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 24 Apr 2016 15:54:42 -0700
-Subject: [PATCH 2/3] recovery: Fix missing selinux contexts on yaffs2 after
+Subject: [PATCH 2/2] recovery: Fix missing selinux contexts on yaffs2 after
  restore
 
 After restoring a yaffs2 partition, the root of the partition loses its selinux context.  Read from file_contexts and set the default file_context to the folder
@@ -89,35 +89,6 @@ index 89650db..32c410c 100644
  	if (Mount_Read_Only || Mount_Flags & MS_RDONLY)
  		// Remount as read only when restoration is complete
  		ReMount(true);
--- 
-2.7.4
-
-
-From edb6defb55e340c3cf9a81b27355e163b8528393 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Wed, 24 Aug 2016 18:32:37 -0700
-Subject: [PATCH 3/3] recovery: Fix restoring image
-
-Fix path that we try to restore from.
-
-Change-Id: I7727a23e7d30e5cb62e0d4c4aa4f44838a04ea88
----
- partition.cpp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/partition.cpp b/partition.cpp
-index 32c410c..38c8a48 100644
---- a/partition.cpp
-+++ b/partition.cpp
-@@ -2471,7 +2471,7 @@ bool TWPartition::Restore_Image(PartitionSettings *part_settings) {
- 	if (part_settings->adbbackup)
- 		Full_FileName = TW_ADB_RESTORE;
- 	else
--		Full_FileName = part_settings->Full_Backup_Path + part_settings->Backup_FileName;
-+		Full_FileName = part_settings->Restore_Name + "/" + part_settings->Backup_FileName;
- 
- 	if (Restore_File_System == "emmc") {
- 		if (!part_settings->adbbackup)
 -- 
 2.7.4
 

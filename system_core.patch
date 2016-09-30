@@ -1,7 +1,7 @@
-From 02f927c56b6f58059cef0634c3805999d7a14153 Mon Sep 17 00:00:00 2001
+From f1c9edeb78e2c28f43108cc7437cdd641b364cd7 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 25 Aug 2016 21:31:18 -0700
-Subject: [PATCH] core: Don't try to flash recovery
+Subject: [PATCH 1/3] core: Don't try to flash recovery
 
 Just don't.  Would totally screw up the device if it succeeded...
 ---
@@ -24,3 +24,158 @@ index 3466dce..b3709d6 100644
 +#    oneshot
 -- 
 2.7.4
+
+
+From ae43ae2ccc83f14fca2d5fa0a1324206d6ccb2a7 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Fri, 30 Sep 2016 09:36:41 -0700
+Subject: [PATCH 2/3] core: Don't set mmap value on low ram devices
+
+This flag (TARGET_LOW_RAM_DEVICE) was unused.  Setting the mmap value causes all sorts of fragmentation on low (ie 512mb) RAM devices, not to mention the fact that the kernel patches break hardware decoding/encoding
+---
+ init/Android.mk | 5 +++++
+ init/init.cpp   | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/init/Android.mk b/init/Android.mk
+index 4827fa3..d7d2aa3 100644
+--- a/init/Android.mk
++++ b/init/Android.mk
+@@ -18,6 +18,11 @@ init_cflags += \
+     -Wno-unused-parameter \
+     -Werror \
+ 
++ifeq ($(TARGET_LOW_RAM_DEVICE),true)
++init_cflags += \
++    -DLOW_RAM_DEVICE
++endif
++
+ # --
+ 
+ # If building on Linux, then build unit test for the host.
+diff --git a/init/init.cpp b/init/init.cpp
+index 84da2b9..1f33fdd 100644
+--- a/init/init.cpp
++++ b/init/init.cpp
+@@ -305,6 +305,10 @@ static bool __attribute__((unused)) set_mmap_rnd_bits_min(int start, int min, bo
+  */
+ static int set_mmap_rnd_bits_action(const std::vector<std::string>& args)
+ {
++#if defined(LOW_RAM_DEVICE)
++    return 0;
++#endif
++
+     int ret = -1;
+ 
+     /* values are arch-dependent */
+-- 
+2.7.4
+
+
+From 63e268ee77abcbb972da42efc64fc96eccfe0aff Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Fri, 30 Sep 2016 09:37:56 -0700
+Subject: [PATCH 3/3] Revert "libnetutils: Add synchronization per socket full
+ operation"
+
+Wreaks havoc with our data connection
+This reverts commit cebcd450c6ca3de5106ef3d817d5b760f5d57fbe.
+---
+ libnetutils/dhcptool.c  | 7 ++-----
+ libnetutils/ifc_utils.c | 9 ---------
+ 2 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/libnetutils/dhcptool.c b/libnetutils/dhcptool.c
+index d23afd3..5dfb3e8 100644
+--- a/libnetutils/dhcptool.c
++++ b/libnetutils/dhcptool.c
+@@ -14,7 +14,6 @@
+  * limitations under the License.
+  */
+ 
+-#include <err.h>
+ #include <errno.h>
+ #include <error.h>
+ #include <stdbool.h>
+@@ -31,14 +30,12 @@ int main(int argc, char* argv[]) {
+ 
+   char* interface = argv[1];
+   if (ifc_init()) {
+-    err(errno, "dhcptool %s: ifc_init failed", interface);
+-    ifc_close();
+-    return EXIT_FAILURE;
++    error(EXIT_FAILURE, errno, "dhcptool %s: ifc_init failed", interface);
+   }
+ 
+   int rc = do_dhcp(interface);
+   if (rc) {
+-    err(errno, "dhcptool %s: do_dhcp failed", interface);
++    error(0, errno, "dhcptool %s: do_dhcp failed", interface);
+   }
+ 
+   ifc_close();
+diff --git a/libnetutils/ifc_utils.c b/libnetutils/ifc_utils.c
+index eae32ce..f9f62f8 100644
+--- a/libnetutils/ifc_utils.c
++++ b/libnetutils/ifc_utils.c
+@@ -19,7 +19,6 @@
+ #include <unistd.h>
+ #include <string.h>
+ #include <errno.h>
+-#include <pthread.h>
+ 
+ #include <sys/socket.h>
+ #include <sys/select.h>
+@@ -58,8 +57,6 @@
+ 
+ static int ifc_ctl_sock = -1;
+ static int ifc_ctl_sock6 = -1;
+-static pthread_mutex_t ifc_sock_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+-static pthread_mutex_t ifc_sock6_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+ void printerr(char *fmt, ...);
+ 
+ #define DBG 0
+@@ -125,8 +122,6 @@ int string_to_ip(const char *string, struct sockaddr_storage *ss) {
+ int ifc_init(void)
+ {
+     int ret;
+-
+-    pthread_mutex_lock(&ifc_sock_mutex);
+     if (ifc_ctl_sock == -1) {
+         ifc_ctl_sock = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+         if (ifc_ctl_sock < 0) {
+@@ -141,7 +136,6 @@ int ifc_init(void)
+ 
+ int ifc_init6(void)
+ {
+-    pthread_mutex_lock(&ifc_sock6_mutex);
+     if (ifc_ctl_sock6 == -1) {
+         ifc_ctl_sock6 = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+         if (ifc_ctl_sock6 < 0) {
+@@ -158,7 +152,6 @@ void ifc_close(void)
+         (void)close(ifc_ctl_sock);
+         ifc_ctl_sock = -1;
+     }
+-    pthread_mutex_unlock(&ifc_sock_mutex);
+ }
+ 
+ void ifc_close6(void)
+@@ -167,7 +160,6 @@ void ifc_close6(void)
+         (void)close(ifc_ctl_sock6);
+         ifc_ctl_sock6 = -1;
+     }
+-    pthread_mutex_unlock(&ifc_sock6_mutex);
+ }
+ 
+ static void ifc_init_ifr(const char *name, struct ifreq *ifr)
+@@ -561,7 +553,6 @@ int ifc_act_on_ipv4_route(int action, const char *ifname, struct in_addr dst, in
+     ifc_init();
+ 
+     if (ifc_ctl_sock < 0) {
+-        ifc_close();
+         return -errno;
+     }
+ 
+-- 
+2.7.4
+

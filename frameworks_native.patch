@@ -1,7 +1,7 @@
 From 0a503347de62cc32ef16ea71636312a034a686f7 Mon Sep 17 00:00:00 2001
 From: Kyle Repinski <repinski23@gmail.com>
 Date: Wed, 10 Jun 2015 18:49:57 -0500
-Subject: [PATCH 1/3] egl: Add back b/10194508 workaround.
+Subject: [PATCH 1/2] egl: Add back b/10194508 workaround.
 
 This was removed because it did not pass CTS and was applied across the board
 for all OMAP4 devices, but some still-shipping OMAP4 devices don't need it
@@ -75,7 +75,7 @@ index e793852..54efe6e 100644
 From 8e14bb292794ab48bb577655245ba45542fb6209 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 12 Apr 2016 20:11:51 -0700
-Subject: [PATCH 2/3] surfaceflinger: Comment out context priority error
+Subject: [PATCH 2/2] surfaceflinger: Comment out context priority warning
 
 Since we're compiling with -Wall, we can't have the warning
 ---
@@ -95,134 +95,6 @@ index 27357b9..0d6a674 100644
              EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
  #endif
  #endif
--- 
-2.7.4
-
-
-From 73d7dc9ee12eab57eecbfe999d1ae6f1dffb88f5 Mon Sep 17 00:00:00 2001
-From: Simon Shields <keepcalm444@gmail.com>
-Date: Thu, 3 Dec 2015 20:34:15 +1100
-Subject: [PATCH 3/3] libbinder: allow devices to disable ashmem size tracking
-
-The addition of ashmem size tracking has resulted in a broken ABI
-for old blobs.
-
-Change-Id: Ife8514be1ba639c4061de38b59794c46bcc2d7f8
----
- include/binder/Parcel.h |  2 ++
- libs/binder/Parcel.cpp  | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
-
-diff --git a/include/binder/Parcel.h b/include/binder/Parcel.h
-index 1c355c4..bd23069 100644
---- a/include/binder/Parcel.h
-+++ b/include/binder/Parcel.h
-@@ -496,8 +496,10 @@ public:
-         inline void* data() { return mData; }
-     };
- 
-+#ifndef DISABLE_ASHMEM_TRACKING
- private:
-     size_t mOpenAshmemSize;
-+#endif
- 
- public:
-     // TODO: Remove once ABI can be changed.
-diff --git a/libs/binder/Parcel.cpp b/libs/binder/Parcel.cpp
-index e88ae29..f0761ef 100644
---- a/libs/binder/Parcel.cpp
-+++ b/libs/binder/Parcel.cpp
-@@ -567,7 +567,11 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
- 
-             flat_binder_object* flat
-                 = reinterpret_cast<flat_binder_object*>(mData + off);
-+#ifndef DISABLE_ASHMEM_TRACKING
-             acquire_object(proc, *flat, this, &mOpenAshmemSize);
-+#else
-+            acquire_object(proc, *flat, this);
-+#endif
- 
-             if (flat->type == BINDER_TYPE_FD) {
-                 // If this is a file descriptor, we need to dup it so the
-@@ -1329,7 +1333,11 @@ restart_write:
-         // Need to write meta-data?
-         if (nullMetaData || val.binder != 0) {
-             mObjects[mObjectsSize] = mDataPos;
-+#ifndef DISABLE_ASHMEM_TRACKING
-             acquire_object(ProcessState::self(), val, this, &mOpenAshmemSize);
-+#else
-+            acquire_object(ProcessState::self(), val, this);
-+#endif
-             mObjectsSize++;
-         }
- 
-@@ -2257,7 +2265,11 @@ void Parcel::releaseObjects()
-         i--;
-         const flat_binder_object* flat
-             = reinterpret_cast<flat_binder_object*>(data+objects[i]);
-+#ifndef DISABLE_ASHMEM_TRACKING
-         release_object(proc, *flat, this, &mOpenAshmemSize);
-+#else
-+        release_object(proc, *flat, this);
-+#endif
-     }
- }
- 
-@@ -2271,7 +2283,11 @@ void Parcel::acquireObjects()
-         i--;
-         const flat_binder_object* flat
-             = reinterpret_cast<flat_binder_object*>(data+objects[i]);
-+#ifndef DISABLE_ASHMEM_TRACKING
-         acquire_object(proc, *flat, this, &mOpenAshmemSize);
-+#else
-+        acquire_object(proc, *flat, this);
-+#endif
-     }
- }
- 
-@@ -2462,7 +2478,11 @@ status_t Parcel::continueWrite(size_t desired)
-                     // will need to rescan because we may have lopped off the only FDs
-                     mFdsKnown = false;
-                 }
-+#ifndef DISABLE_ASHMEM_TRACKING
-                 release_object(proc, *flat, this, &mOpenAshmemSize);
-+#else
-+                release_object(proc, *flat, this);
-+#endif
-             }
-             binder_size_t* objects =
-                 (binder_size_t*)realloc(mObjects, objectsSize*sizeof(binder_size_t));
-@@ -2547,7 +2567,9 @@ void Parcel::initState()
-     mFdsKnown = true;
-     mAllowFds = true;
-     mOwner = NULL;
-+#ifndef DISABLE_ASHMEM_TRACKING
-     mOpenAshmemSize = 0;
-+#endif
- 
-     // racing multiple init leads only to multiple identical write
-     if (gMaxFds == 0) {
-@@ -2582,12 +2604,20 @@ size_t Parcel::getBlobAshmemSize() const
-     // This used to return the size of all blobs that were written to ashmem, now we're returning
-     // the ashmem currently referenced by this Parcel, which should be equivalent.
-     // TODO: Remove method once ABI can be changed.
-+#ifndef DISABLE_ASHMEM_TRACKING
-     return mOpenAshmemSize;
-+#else
-+    return 0;
-+#endif
- }
- 
- size_t Parcel::getOpenAshmemSize() const
- {
-+#ifndef DISABLE_ASHMEM_TRACKING
-     return mOpenAshmemSize;
-+#else
-+    return 0;
-+#endif
- }
- 
- // --- Parcel::Blob ---
 -- 
 2.7.4
 

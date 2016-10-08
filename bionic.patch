@@ -1,7 +1,7 @@
 From cfb2950914b27d038b2ba0b7fca5581fb965c0f7 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 12 Apr 2016 19:02:17 -0700
-Subject: [PATCH 1/4] bionic: Restore non-pie support
+Subject: [PATCH 1/2] bionic: Restore non-pie support
 
 ---
  linker/Android.mk | 4 ++++
@@ -48,7 +48,7 @@ index 39aa2ca..1b5ccda 100644
 From b1ddaf4260a46e03e48f6b8337944894fe1574cc Mon Sep 17 00:00:00 2001
 From: Kyle Repinski <repinski23@gmail.com>
 Date: Sat, 27 Aug 2016 20:19:20 -0500
-Subject: [PATCH 2/3] linker: Add build flag to allow text relocations for
+Subject: [PATCH 2/2] linker: Add build flag to allow text relocations for
  platform libs.
 
 ---
@@ -92,66 +92,3 @@ index 1b5ccda..75d15c3 100644
        return false;
 -- 
 2.7.4
-
-
-From 768fff92e7617d770358bc2d861eb941dc253b28 Mon Sep 17 00:00:00 2001
-From: Kyle Repinski <repinski23@gmail.com>
-Date: Mon, 29 Aug 2016 00:21:56 -0500
-Subject: [PATCH 4/4] libc: Fix absolute_timespec_from_timespec overflow.
-
-A legacy library has uncovered an overflow in this newly introduced function.
-absolute_timespec_from_timespec blindly adds a relative timespec to the current
-timespec, ignoring the possibility of tv_sec overflowing.
-
-This was produced by calling pthread_cond_timedwait_relative_np with a filled
-(to maximum values) timespec to create a faux 'infinite timeout'.
-
-This is fixed by clamping the value as high as we can determine is safe.
----
- libc/bionic/bionic_time_conversions.cpp | 13 +++++++++++++
- libc/private/bionic_time_conversions.h  |  1 +
- 2 files changed, 14 insertions(+)
-
-diff --git a/libc/bionic/bionic_time_conversions.cpp b/libc/bionic/bionic_time_conversions.cpp
-index f3ca46a..da5d736 100644
---- a/libc/bionic/bionic_time_conversions.cpp
-+++ b/libc/bionic/bionic_time_conversions.cpp
-@@ -54,10 +54,23 @@ void timeval_from_timespec(timeval& tv, const timespec& ts) {
- 
- void absolute_timespec_from_timespec(timespec& abs_ts, const timespec& ts, clockid_t clock) {
-   clock_gettime(clock, &abs_ts);
-+  time_t tmp_tv_sec = abs_ts.tv_sec;
-   abs_ts.tv_sec += ts.tv_sec;
-   abs_ts.tv_nsec += ts.tv_nsec;
-   if (abs_ts.tv_nsec >= NS_PER_S) {
-     abs_ts.tv_nsec -= NS_PER_S;
-     abs_ts.tv_sec++;
-   }
-+  // With a large relative timespec we might overflow.
-+  // Because time_t is arbitrary, we should be fancy handling this.
-+  if (abs_ts.tv_sec < tmp_tv_sec) {
-+    if (sizeof(time_t) == sizeof(int32_t)) {
-+      abs_ts.tv_sec = INT32_MAX;
-+    } else if (sizeof(time_t) == sizeof(int64_t)) {
-+      abs_ts.tv_sec = INT64_MAX;
-+    } else {
-+      // Just take the largest of the two initial values and hope for the best.
-+      abs_ts.tv_sec = MAX(tmp_tv_sec, ts.tv_sec);
-+    }
-+  }
- }
-diff --git a/libc/private/bionic_time_conversions.h b/libc/private/bionic_time_conversions.h
-index a834843..ac1362b 100644
---- a/libc/private/bionic_time_conversions.h
-+++ b/libc/private/bionic_time_conversions.h
-@@ -32,6 +32,7 @@
- #include <errno.h>
- #include <time.h>
- #include <sys/cdefs.h>
-+#include <sys/param.h>
- 
- #include "private/bionic_constants.h"
- 
--- 
-2.7.4
-

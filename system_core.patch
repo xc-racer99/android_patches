@@ -1,7 +1,7 @@
 From f1c9edeb78e2c28f43108cc7437cdd641b364cd7 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 25 Aug 2016 21:31:18 -0700
-Subject: [PATCH 1/3] core: Don't try to flash recovery
+Subject: [PATCH 1/2] core: Don't try to flash recovery
 
 Just don't.  Would totally screw up the device if it succeeded...
 ---
@@ -25,57 +25,10 @@ index 3466dce..b3709d6 100644
 -- 
 2.7.4
 
-
-From ae43ae2ccc83f14fca2d5fa0a1324206d6ccb2a7 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Fri, 30 Sep 2016 09:36:41 -0700
-Subject: [PATCH 2/3] core: Don't set mmap value on low ram devices
-
-This flag (TARGET_LOW_RAM_DEVICE) was unused.  Setting the mmap value causes all sorts of fragmentation on low (ie 512mb) RAM devices, not to mention the fact that the kernel patches break hardware decoding/encoding
----
- init/Android.mk | 5 +++++
- init/init.cpp   | 4 ++++
- 2 files changed, 9 insertions(+)
-
-diff --git a/init/Android.mk b/init/Android.mk
-index 4827fa3..d7d2aa3 100644
---- a/init/Android.mk
-+++ b/init/Android.mk
-@@ -18,6 +18,11 @@ init_cflags += \
-     -Wno-unused-parameter \
-     -Werror \
- 
-+ifeq ($(TARGET_LOW_RAM_DEVICE),true)
-+init_cflags += \
-+    -DLOW_RAM_DEVICE
-+endif
-+
- # --
- 
- # If building on Linux, then build unit test for the host.
-diff --git a/init/init.cpp b/init/init.cpp
-index 84da2b9..1f33fdd 100644
---- a/init/init.cpp
-+++ b/init/init.cpp
-@@ -305,6 +305,10 @@ static bool __attribute__((unused)) set_mmap_rnd_bits_min(int start, int min, bo
-  */
- static int set_mmap_rnd_bits_action(const std::vector<std::string>& args)
- {
-+#if defined(LOW_RAM_DEVICE)
-+    return 0;
-+#endif
-+
-     int ret = -1;
- 
-     /* values are arch-dependent */
--- 
-2.7.4
-
-
 From 63e268ee77abcbb972da42efc64fc96eccfe0aff Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 30 Sep 2016 09:37:56 -0700
-Subject: [PATCH 3/3] Revert "libnetutils: Add synchronization per socket full
+Subject: [PATCH 2/2] Revert "libnetutils: Add synchronization per socket full
  operation"
 
 Wreaks havoc with our data connection

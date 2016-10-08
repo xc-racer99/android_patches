@@ -1,7 +1,7 @@
 From 0479353cb7e39ab405c59126fb5a1d297c1d9d0c Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mikeioannina@gmail.com>
 Date: Wed, 28 Oct 2015 17:09:40 -0700
-Subject: [PATCH 1/5] Revert "Remove mkyaffs2image references."
+Subject: [PATCH 1/4] Revert "Remove mkyaffs2image references."
 
 * Can be enabled on devices that need it with TARGET_USERIMAGES_USE_YAFFS
 ---
@@ -87,7 +87,7 @@ index 94c880f..87e0f8b 100644
 From c1dcab6176b77b745ed2d178bf73754165223039 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Sat, 22 Nov 2014 08:43:59 -0800
-Subject: [PATCH 2/5] build: Add option to disable block-based ota
+Subject: [PATCH 2/4] build: Add option to disable block-based ota
 
 While block-based is great when building on a local machine, it kills rsync
 performance when syncing rebuilds from remote machines.  Provide an option
@@ -134,7 +134,7 @@ index 0aca03b..8d282ca 100644
 From 1eca9497a206f288983fa018384a2814caad8fd9 Mon Sep 17 00:00:00 2001
 From: Ricardo Cerqueira <cyanogenmod@cerqueira.org>
 Date: Tue, 12 Apr 2011 10:57:22 +0100
-Subject: [PATCH 3/5] Allow a device to generically define its own headers
+Subject: [PATCH 3/4] Allow a device to generically define its own headers
 
 We have a few cases of devices including specific versions of projects
 just because of modified headers (msm_mdp.h comes to mind), and I just
@@ -187,7 +187,7 @@ index 918a28d..f3077f3 100644
 From 518f1db5491e7a3c8165336fbc964216f9ed1460 Mon Sep 17 00:00:00 2001
 From: Steve Kondik <shade@chemlab.org>
 Date: Fri, 6 Nov 2015 14:14:25 +0100
-Subject: [PATCH 4/5] Allow override of device asserts, including multi-device
+Subject: [PATCH 4/4] Allow override of device asserts, including multi-device
  support.
 
 Set in board file with TARGET_OTA_ASSERT_DEVICE.
@@ -299,40 +299,6 @@ index b69ddac..910aef0 100755
                               ], extra_option_handler=option_handler)
  
    if len(args) != 2:
--- 
-2.7.4
-
-
-From 0916564ec442eaf70bb19e1e3de49971de7fca5f Mon Sep 17 00:00:00 2001
-From: Simon Shields <keepcalm444@gmail.com>
-Date: Sun, 28 Aug 2016 23:52:24 +1000
-Subject: [PATCH 5/5] build: add BOARD_GLOBAL_C[PP]FLAGS to
- TARGET_GLOBAL_C[PP]FLAGS
-
-* workaround these being reset after BoardConfig.mk is run
-
-Change-Id: Ibe984d862df0e1a5910ea80a66c44d599c299f10
----
- core/combo/select.mk | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/core/combo/select.mk b/core/combo/select.mk
-index df12e7e..97d62c6 100644
---- a/core/combo/select.mk
-+++ b/core/combo/select.mk
-@@ -33,9 +33,9 @@ $(combo_var_prefix)CXX := $(CXX)
- $(combo_var_prefix)AR := $(AR)
- $(combo_var_prefix)STRIP := $(STRIP)
- 
--$(combo_var_prefix)GLOBAL_CFLAGS := -fno-exceptions -Wno-multichar
--$(combo_var_prefix)RELEASE_CFLAGS := -O2 -g -fno-strict-aliasing
--$(combo_var_prefix)GLOBAL_CPPFLAGS :=
-+$(combo_var_prefix)GLOBAL_CFLAGS := -fno-exceptions -Wno-multichar $(BOARD_GLOBAL_CFLAGS)
-+$(combo_var_prefix)RELEASE_CFLAGS := -O2 -g -fno-strict-aliasing $(BOARD_RELEASE_CFLAGS)
-+$(combo_var_prefix)GLOBAL_CPPFLAGS := $(BOARD_GLOBAL_CPPFLAGS)
- $(combo_var_prefix)GLOBAL_LDFLAGS :=
- $(combo_var_prefix)GLOBAL_ARFLAGS := crsPD
- $(combo_var_prefix)GLOBAL_LD_DIRS :=
 -- 
 2.7.4
 

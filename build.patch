@@ -1,4 +1,4 @@
-From 0479353cb7e39ab405c59126fb5a1d297c1d9d0c Mon Sep 17 00:00:00 2001
+From 73c96390b7e4c714800ce37a73a05eddcb764dfb Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mikeioannina@gmail.com>
 Date: Wed, 28 Oct 2015 17:09:40 -0700
 Subject: [PATCH 1/4] Revert "Remove mkyaffs2image references."
@@ -10,10 +10,10 @@ Subject: [PATCH 1/4] Revert "Remove mkyaffs2image references."
  2 files changed, 16 insertions(+), 2 deletions(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index d804c37..0aca03b 100644
+index 2031132..90ebb2e 100644
 --- a/core/Makefile
 +++ b/core/Makefile
-@@ -734,6 +734,9 @@ INTERNAL_USERIMAGES_EXT_VARIANT := ext4
+@@ -745,6 +745,9 @@ INTERNAL_USERIMAGES_EXT_VARIANT := ext4
  endif
  endif
  endif
@@ -23,7 +23,7 @@ index d804c37..0aca03b 100644
  
  # These options tell the recovery updater/installer how to mount the partitions writebale.
  # <fstype>=<fstype_opts>[|<fstype_opts>]...
-@@ -753,6 +756,9 @@ ifeq ($(TARGET_USERIMAGES_USE_F2FS),true)
+@@ -764,6 +767,9 @@ ifeq ($(TARGET_USERIMAGES_USE_F2FS),true)
  INTERNAL_USERIMAGES_DEPS += $(MKF2FSUSERIMG) $(MAKE_F2FS)
  endif
  endif
@@ -33,7 +33,7 @@ index d804c37..0aca03b 100644
  
  ifneq (true,$(TARGET_USERIMAGES_SPARSE_SQUASHFS_DISABLED))
    INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG := -s
-@@ -800,6 +806,7 @@ $(if $(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "vendor_squashf
+@@ -813,6 +819,7 @@ $(if $(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "vendor_squashf
  $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH),$(hide) echo "vendor_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH)" >> $(1))
  $(if $(BOARD_OEMIMAGE_PARTITION_SIZE),$(hide) echo "oem_size=$(BOARD_OEMIMAGE_PARTITION_SIZE)" >> $(1))
  $(if $(BOARD_OEMIMAGE_JOURNAL_SIZE),$(hide) echo "oem_journal_size=$(BOARD_OEMIMAGE_JOURNAL_SIZE)" >> $(1))
@@ -41,7 +41,7 @@ index d804c37..0aca03b 100644
  $(if $(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG),$(hide) echo "extfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG)" >> $(1))
  $(if $(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG),$(hide) echo "squashfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG)" >> $(1))
  $(hide) echo "selinux_fc=$(SELINUX_FC)" >> $(1)
-@@ -1031,11 +1038,16 @@ endif
+@@ -1056,11 +1063,16 @@ endif
  .PHONY: recoveryimage
  recoveryimage: $(INSTALLED_RECOVERYIMAGE_TARGET) $(RECOVERY_RESOURCE_ZIP)
  
@@ -60,7 +60,7 @@ index d804c37..0aca03b 100644
  BOARD_NAND_SPARE_SIZE := 64
  endif
  
-@@ -1481,6 +1493,7 @@ OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
+@@ -1565,6 +1577,7 @@ OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
    $(HOST_OUT_EXECUTABLES)/mkbootfs \
    $(HOST_OUT_EXECUTABLES)/mkbootimg \
    $(HOST_OUT_EXECUTABLES)/fs_config \
@@ -84,7 +84,7 @@ index 94c880f..87e0f8b 100644
 2.7.4
 
 
-From c1dcab6176b77b745ed2d178bf73754165223039 Mon Sep 17 00:00:00 2001
+From 95230f7ad2e374af40d799fb8007bcf5b929fe2a Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Sat, 22 Nov 2014 08:43:59 -0800
 Subject: [PATCH 2/4] build: Add option to disable block-based ota
@@ -102,10 +102,10 @@ Usage: export BLOCK_BASED_OTA=false
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index 0aca03b..8d282ca 100644
+index 90ebb2e..ae9b6ee 100644
 --- a/core/Makefile
 +++ b/core/Makefile
-@@ -1848,6 +1848,12 @@ ifeq ($(TARGET_BUILD_TYPE),debug)
+@@ -1945,6 +1945,12 @@ ifeq ($(TARGET_BUILD_TYPE),debug)
  endif
  name := $(name)-ota-$(FILE_NAME_TAG)
  
@@ -118,7 +118,7 @@ index 0aca03b..8d282ca 100644
  INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
  
  $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
-@@ -1856,7 +1862,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
+@@ -1953,7 +1959,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	@echo "Package OTA: $@"
  	$(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH MKBOOTIMG=$(MKBOOTIMG) \
  	   ./build/tools/releasetools/ota_from_target_files -v \
@@ -131,7 +131,7 @@ index 0aca03b..8d282ca 100644
 2.7.4
 
 
-From 1eca9497a206f288983fa018384a2814caad8fd9 Mon Sep 17 00:00:00 2001
+From 35758c42710ed5973b24048812de3d46472f9dc7 Mon Sep 17 00:00:00 2001
 From: Ricardo Cerqueira <cyanogenmod@cerqueira.org>
 Date: Tue, 12 Apr 2011 10:57:22 +0100
 Subject: [PATCH 3/4] Allow a device to generically define its own headers
@@ -165,10 +165,10 @@ Change-Id: I489b2aab6dbacd9122d834f85e07b63ed1271f07
  1 file changed, 5 insertions(+)
 
 diff --git a/core/binary.mk b/core/binary.mk
-index 918a28d..f3077f3 100644
+index 7b22903..7e52ece 100644
 --- a/core/binary.mk
 +++ b/core/binary.mk
-@@ -1232,6 +1232,11 @@ my_tracked_gen_files :=
+@@ -1227,6 +1227,11 @@ my_tracked_gen_files :=
  $(foreach f,$(my_tracked_src_files),$(eval my_src_file_obj_$(s):=))
  my_tracked_src_files :=
  
@@ -184,7 +184,7 @@ index 918a28d..f3077f3 100644
 2.7.4
 
 
-From 518f1db5491e7a3c8165336fbc964216f9ed1460 Mon Sep 17 00:00:00 2001
+From cf6b59866baee61b4d1c30a4b5202046f7ad341e Mon Sep 17 00:00:00 2001
 From: Steve Kondik <shade@chemlab.org>
 Date: Fri, 6 Nov 2015 14:14:25 +0100
 Subject: [PATCH 4/4] Allow override of device asserts, including multi-device
@@ -203,10 +203,10 @@ Conflicts:
  3 files changed, 24 insertions(+), 5 deletions(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index 8d282ca..2a79d6c 100644
+index ae9b6ee..bba3503 100644
 --- a/core/Makefile
 +++ b/core/Makefile
-@@ -1858,6 +1858,12 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
+@@ -1955,6 +1955,12 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
  
  $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
  
@@ -219,7 +219,7 @@ index 8d282ca..2a79d6c 100644
  $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	@echo "Package OTA: $@"
  	$(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH MKBOOTIMG=$(MKBOOTIMG) \
-@@ -1865,6 +1871,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
+@@ -1962,6 +1968,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	   $(block_based) \
  	   -p $(HOST_OUT) \
  	   -k $(KEY_CERT_PAIR) \
@@ -249,28 +249,28 @@ index 2ecc5cb..8136824 100644
  
    def AssertSomeBootloader(self, *bootloaders):
 diff --git a/tools/releasetools/ota_from_target_files.py b/tools/releasetools/ota_from_target_files.py
-index b69ddac..910aef0 100755
+index d3d4974..0ba190d 100755
 --- a/tools/releasetools/ota_from_target_files.py
 +++ b/tools/releasetools/ota_from_target_files.py
-@@ -113,6 +113,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
-       Generate a log file that shows the differences in the source and target
-       builds for an incremental package. This option is only meaningful when
-       -i is specified.
+@@ -124,6 +124,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
+ 
+   --payload_signer_args <args>
+       Specify the arguments needed for payload signer.
 +
 +  --override_device <device>
 +      Override device-specific asserts. Can be a comma-separated list.
  """
  
  import sys
-@@ -160,6 +163,7 @@ OPTIONS.cache_size = None
- OPTIONS.stash_threshold = 0.8
- OPTIONS.gen_verify = False
+@@ -174,6 +177,7 @@ OPTIONS.gen_verify = False
  OPTIONS.log_diff = None
+ OPTIONS.payload_signer = None
+ OPTIONS.payload_signer_args = []
 +OPTIONS.override_device = 'auto'
  
  def MostPopularKey(d, default):
    """Given a dict, return the key corresponding to the largest
-@@ -440,7 +444,10 @@ def SignOutput(temp_zip_name, output_zip_name):
+@@ -454,7 +458,10 @@ def SignOutput(temp_zip_name, output_zip_name):
  def AppendAssertions(script, info_dict, oem_dict=None):
    oem_props = info_dict.get("oem_fingerprint_properties")
    if oem_props is None or len(oem_props) == 0:
@@ -282,19 +282,19 @@ index b69ddac..910aef0 100755
      script.AssertDevice(device)
    else:
      if oem_dict is None:
-@@ -1900,6 +1907,8 @@ def main(argv):
-       OPTIONS.gen_verify = True
-     elif o == "--log_diff":
-       OPTIONS.log_diff = a
+@@ -1949,6 +1956,8 @@ def main(argv):
+       OPTIONS.payload_signer = a
+     elif o == "--payload_signer_args":
+       OPTIONS.payload_signer_args = shlex.split(a)
 +    elif o == "--override_device":
 +      OPTIONS.override_device = a
      else:
        return False
      return True
-@@ -1929,6 +1938,7 @@ def main(argv):
-                                  "stash_threshold=",
-                                  "gen_verify",
+@@ -1980,6 +1989,7 @@ def main(argv):
                                   "log_diff=",
+                                  "payload_signer=",
+                                  "payload_signer_args=",
 +                                 "override_device=",
                               ], extra_option_handler=option_handler)
  

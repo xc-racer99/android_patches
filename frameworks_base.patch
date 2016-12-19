@@ -1,16 +1,11 @@
-From 7357f8c0c8a6bdc09555ab47dae83f28346b8470 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Beno=C3=AEt=20Mauduit?= <bmauduit@beneth.fr>
+From c69b75a639f2fddfa916b532d6a9a9ff52c06946 Mon Sep 17 00:00:00 2001
+From: Benoit Mauduit <bmauduit@beneth.fr>
 Date: Wed, 22 Jun 2016 15:04:56 +0200
-Subject: [PATCH 1/1] Add signature Spoofing permission
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH 1/2] Add signature Spoofing permission
 
 This is needed by GmsCore (https://microg.org/) to pretend
 the existence of the official Play Services to applications calling
 Google APIs.
-
-Signed-off-by: Benoît Mauduit <bmauduit@beneth.fr>
 ---
  core/res/AndroidManifest.xml                       |  7 +++++++
  core/res/res/values/config.xml                     |  2 ++
@@ -19,10 +14,10 @@ Signed-off-by: Benoît Mauduit <bmauduit@beneth.fr>
  4 files changed, 35 insertions(+), 2 deletions(-)
 
 diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
-index ea0e39c..a936983 100644
+index 430c6b6..b23fdb3 100644
 --- a/core/res/AndroidManifest.xml
 +++ b/core/res/AndroidManifest.xml
-@@ -1654,6 +1654,13 @@
+@@ -1903,6 +1903,13 @@
          android:description="@string/permdesc_getPackageSize"
          android:protectionLevel="normal" />
  
@@ -37,10 +32,10 @@ index ea0e39c..a936983 100644
           {@link android.content.pm.PackageManager#addPackageToPreferred}
           for details. -->
 diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
-index c7846cf..916d8a5 100644
+index ae8edab..6a475fc 100644
 --- a/core/res/res/values/config.xml
 +++ b/core/res/res/values/config.xml
-@@ -1298,6 +1298,8 @@
+@@ -1267,6 +1267,8 @@
      <string-array name="config_locationProviderPackageNames" translatable="false">
          <!-- The standard AOSP fused location provider -->
          <item>com.android.location.fused</item>
@@ -50,10 +45,10 @@ index c7846cf..916d8a5 100644
  
      <!-- This string array can be overriden to enable test location providers initially. -->
 diff --git a/core/res/res/values/strings.xml b/core/res/res/values/strings.xml
-index 58135db..e65367a 100644
+index f42c9ed..cfbc4af 100644
 --- a/core/res/res/values/strings.xml
 +++ b/core/res/res/values/strings.xml
-@@ -616,6 +616,11 @@
+@@ -664,6 +664,11 @@
      <!--  Permissions -->
  
      <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
@@ -66,11 +61,11 @@ index 58135db..e65367a 100644
      <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
      <string name="permdesc_statusBar">Allows the app to disable the status bar or add and remove system icons.</string>
 diff --git a/services/core/java/com/android/server/pm/PackageManagerService.java b/services/core/java/com/android/server/pm/PackageManagerService.java
-index 0493180..35f49d7 100644
+index 5fd9c58..288b263 100644
 --- a/services/core/java/com/android/server/pm/PackageManagerService.java
 +++ b/services/core/java/com/android/server/pm/PackageManagerService.java
-@@ -2816,8 +2816,27 @@ public class PackageManagerService extends IPackageManager.Stub {
-         final Set<String> permissions = permissionsState.getPermissions(userId);
+@@ -3067,8 +3067,27 @@ public class PackageManagerService extends IPackageManager.Stub {
+                 ? Collections.<String>emptySet() : permissionsState.getPermissions(userId);
          final PackageUserState state = ps.readUserState(userId);
  
 -        return PackageParser.generatePackageInfo(p, gids, flags,
@@ -100,5 +95,33 @@ index 0493180..35f49d7 100644
  
      @Override
 -- 
-2.8.1
+2.7.4
+
+
+From 3de5e51b41c1a8935788875dc3731c7895fc41d3 Mon Sep 17 00:00:00 2001
+From: danielegobbetti <d.gobbetti@peer.biz>
+Date: Thu, 3 Nov 2016 00:22:00 -0700
+Subject: [PATCH 2/2] base: [MicroG] Allow location providers also outside of
+ /system
+
+---
+ services/core/java/com/android/server/ServiceWatcher.java | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/services/core/java/com/android/server/ServiceWatcher.java b/services/core/java/com/android/server/ServiceWatcher.java
+index 2ff036b..9141db2 100644
+--- a/services/core/java/com/android/server/ServiceWatcher.java
++++ b/services/core/java/com/android/server/ServiceWatcher.java
+@@ -92,8 +92,7 @@ public class ServiceWatcher implements ServiceConnection {
+             String pkg = initialPackageNames.get(i);
+             try {
+                 HashSet<Signature> set = new HashSet<Signature>();
+-                Signature[] sigs = pm.getPackageInfo(pkg, PackageManager.MATCH_SYSTEM_ONLY
+-                        | PackageManager.GET_SIGNATURES).signatures;
++                Signature[] sigs = pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES).signatures;
+                 set.addAll(Arrays.asList(sigs));
+                 sigSets.add(set);
+             } catch (NameNotFoundException e) {
+-- 
+2.7.4
 

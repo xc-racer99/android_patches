@@ -1,7 +1,7 @@
-From 84f7498f14dae96a078c3026ecde3712449279fb Mon Sep 17 00:00:00 2001
+From c7c91043639bb38715b0214b4c97be6ed0b88ac5 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 26 Aug 2016 18:10:53 -0700
-Subject: [PATCH] bt: Fix compilation for GATT/SMP/LE disabled
+Subject: [PATCH 1/2] bt: Fix compilation for GATT/SMP/LE disabled
 
 Lightly tested, but it compiles, I can pair with a computer,
 and play audio to it
@@ -31,7 +31,7 @@ index 29760e4..8ab15ee 100644
  bluetooth_CPPFLAGS :=
  
 diff --git a/bta/dm/bta_dm_act.c b/bta/dm/bta_dm_act.c
-index 2fa9d01..b320916 100644
+index acda747..e5a424d 100644
 --- a/bta/dm/bta_dm_act.c
 +++ b/bta/dm/bta_dm_act.c
 @@ -383,7 +383,9 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
@@ -56,10 +56,10 @@ index 2fa9d01..b320916 100644
          memset(&bta_dm_conn_srvcs, 0, sizeof(bta_dm_conn_srvcs));
          memset(&bta_dm_di_cb, 0, sizeof(tBTA_DM_DI_CB));
 diff --git a/btif/src/btif_dm.c b/btif/src/btif_dm.c
-index c47909f..c297f5b 100644
+index f70e4fa..cc932ab 100644
 --- a/btif/src/btif_dm.c
 +++ b/btif/src/btif_dm.c
-@@ -2681,8 +2681,10 @@ bt_status_t btif_dm_get_remote_services_by_transport(bt_bdaddr_t *remote_addr, c
+@@ -2684,8 +2684,10 @@ bt_status_t btif_dm_get_remote_services_by_transport(bt_bdaddr_t *remote_addr, c
      mask_ext.p_uuid = NULL;
      mask_ext.srvc_mask = BTA_ALL_SERVICE_MASK;
  
@@ -70,7 +70,7 @@ index c47909f..c297f5b 100644
  
      return BT_STATUS_SUCCESS;
  }
-@@ -2921,6 +2923,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
+@@ -2924,6 +2926,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
      strncpy(conf, recv, 64);
      conf[63] = 0; // null terminate
  
@@ -78,7 +78,7 @@ index c47909f..c297f5b 100644
      if ((pch = strtok(conf, ",")) != NULL)
          p_cfg->ble_auth_req = (UINT8) strtoul(pch, &endptr, 16);
      else
-@@ -2945,6 +2948,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
+@@ -2948,6 +2951,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
          p_cfg->ble_max_key_size =  (UINT8) strtoul(pch, &endptr, 16);
      else
          return FALSE;
@@ -295,6 +295,112 @@ index 58ac4b0..d956f1e 100644
  
      /* If here, no match found */
      return (NULL);
+-- 
+2.7.4
+
+
+From c4494df90632d88f181c8f83468d070d26ff9359 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sun, 11 Dec 2016 08:41:17 -0800
+Subject: [PATCH 2/2] Revert "Add BT_HCI_UNKNOWN_MESSAGE_TYPE log event"
+
+Doesn't work on some devices.  Need to if'def this sometime...
+This reverts commit e1c8ed17c7a35510f00997ca329687f73cd193d8.
+---
+ EventLogTags.logtags         |  1 -
+ hci/src/hci_hal_h4.c         |  7 +------
+ hci/test/hci_hal_h4_test.cpp | 25 +++++++++++--------------
+ 3 files changed, 12 insertions(+), 21 deletions(-)
+
+diff --git a/EventLogTags.logtags b/EventLogTags.logtags
+index dc1d239..32493d8 100644
+--- a/EventLogTags.logtags
++++ b/EventLogTags.logtags
+@@ -35,4 +35,3 @@
+ 
+ 1010000 bt_hci_timeout (opcode|1)
+ 1010001 bt_config_source (opcode|1)
+-1010002 bt_hci_unknown_type (hci_type|1)
+diff --git a/hci/src/hci_hal_h4.c b/hci/src/hci_hal_h4.c
+index 9c7afe5..062b6c0 100644
+--- a/hci/src/hci_hal_h4.c
++++ b/hci/src/hci_hal_h4.c
+@@ -38,8 +38,6 @@
+ // when streaming time sensitive data (A2DP).
+ #define HCI_THREAD_PRIORITY -19
+ 
+-#define BT_HCI_UNKNOWN_MESSAGE_TYPE_NUM 1010002
+-
+ // Our interface and modules we import
+ static const hci_hal_t interface;
+ static const hci_hal_callbacks_t *callbacks;
+@@ -235,10 +233,7 @@ static void event_uart_has_bytes(eager_reader_t *reader, UNUSED_ATTR void *conte
+       return;
+ 
+     if (type_byte < DATA_TYPE_ACL || type_byte > DATA_TYPE_EVENT) {
+-      LOG_ERROR(LOG_TAG, "%s Unknown HCI message type 0x%x (min=0x%x max=0x%x). Aborting...",
+-                __func__, type_byte, DATA_TYPE_ACL, DATA_TYPE_EVENT);
+-      LOG_EVENT_INT(BT_HCI_UNKNOWN_MESSAGE_TYPE_NUM, type_byte);
+-      assert(false && "Unknown HCI message type");
++      LOG_ERROR(LOG_TAG, "%s Unknown HCI message type. Dropping this byte 0x%x, min %x, max %x", __func__, type_byte, DATA_TYPE_ACL, DATA_TYPE_EVENT);
+       return;
+     }
+ 
+diff --git a/hci/test/hci_hal_h4_test.cpp b/hci/test/hci_hal_h4_test.cpp
+index 1b861a0..bf62405 100644
+--- a/hci/test/hci_hal_h4_test.cpp
++++ b/hci/test/hci_hal_h4_test.cpp
+@@ -192,18 +192,17 @@ static void expect_socket_data(int fd, char first_byte, char *data) {
+   }
+ }
+ 
+-static void write_packet(int fd, char first_byte, const void *data,
+-                         size_t datalen) {
++static void write_packet(int fd, char first_byte, char *data) {
+   write(fd, &first_byte, 1);
+-  write(fd, data, datalen);
++  write(fd, data, strlen(data));
+ }
+ 
+-static void write_packet_reentry(int fd, char first_byte, const void *data,
+-                                 size_t datalen) {
++static void write_packet_reentry(int fd, char first_byte, char *data) {
+   write(fd, &first_byte, 1);
+ 
+-  for (size_t i = 0; i < datalen; i++) {
+-    write(fd, static_cast<const uint8_t *>(data) + i, 1);
++  int length = strlen(data);
++  for (int i = 0; i < length; i++) {
++    write(fd, &data[i], 1);
+     semaphore_wait(reentry_semaphore);
+   }
+ }
+@@ -227,11 +226,10 @@ TEST_F(HciHalH4Test, test_transmit) {
+ TEST_F(HciHalH4Test, test_read_synchronous) {
+   reset_for(read_synchronous);
+ 
+-  write_packet(sockfd[1], DATA_TYPE_ACL, acl_data, strlen(acl_data));
+-  write_packet(sockfd[1], HCI_BLE_EVENT, corrupted_data,
+-               sizeof(corrupted_data));
+-  write_packet(sockfd[1], DATA_TYPE_SCO, sco_data, strlen(sco_data));
+-  write_packet(sockfd[1], DATA_TYPE_EVENT, event_data, strlen(event_data));
++  write_packet(sockfd[1], DATA_TYPE_ACL, acl_data);
++  write_packet(sockfd[1], HCI_BLE_EVENT, corrupted_data);
++  write_packet(sockfd[1], DATA_TYPE_SCO, sco_data);
++  write_packet(sockfd[1], DATA_TYPE_EVENT, event_data);
+ 
+   // Wait for all data to be received before calling the test good
+   semaphore_wait(done);
+@@ -244,8 +242,7 @@ TEST_F(HciHalH4Test, test_read_async_reentry) {
+   reentry_semaphore = semaphore_new(0);
+   reentry_i = 0;
+ 
+-  write_packet_reentry(sockfd[1], DATA_TYPE_ACL, sample_data3,
+-                       strlen(sample_data3));
++  write_packet_reentry(sockfd[1], DATA_TYPE_ACL, sample_data3);
+ 
+   // write_packet_reentry ensures the data has been received
+   semaphore_free(reentry_semaphore);
 -- 
 2.7.4
 

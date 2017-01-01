@@ -1,7 +1,7 @@
-From 2c3e582ee3cd536bd0a6f41f1781a5cde9bbc071 Mon Sep 17 00:00:00 2001
+From 7862d638658787d8db91238c637bdddc629d67b6 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 15 Dec 2015 18:57:03 -0800
-Subject: [PATCH 1/2] recovery: Do not pack relocations for flashutils
+Subject: [PATCH 1/3] recovery: Do not pack relocations for flashutils
 
 Needed for Marshmallow+
 
@@ -42,10 +42,10 @@ index ab552b1..75c7cb0 100644
 2.7.4
 
 
-From b322f8cb7b8a4766ad9102deedff54e9eb5e0bae Mon Sep 17 00:00:00 2001
+From 46cc4910965c52d6de10d3a82bc269fb3b4a6a1d Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 24 Apr 2016 15:54:42 -0700
-Subject: [PATCH 2/2] recovery: Fix missing selinux contexts on yaffs2 after
+Subject: [PATCH 2/3] recovery: Fix missing selinux contexts on yaffs2 after
  restore
 
 After restoring a yaffs2 partition, the root of the partition loses its selinux context.  Read from file_contexts and set the default file_context to the folder
@@ -56,10 +56,10 @@ Change-Id: I79a693812cf49fb4ee15e54451c200b3916b8a8a
  1 file changed, 23 insertions(+)
 
 diff --git a/partition.cpp b/partition.cpp
-index 89650db..32c410c 100644
+index 5a53d61..8de463c 100644
 --- a/partition.cpp
 +++ b/partition.cpp
-@@ -2431,6 +2431,29 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
+@@ -2479,6 +2479,29 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
  		}
  	}
  #endif
@@ -89,6 +89,58 @@ index 89650db..32c410c 100644
  	if (Mount_Read_Only || Mount_Flags & MS_RDONLY)
  		// Remount as read only when restoration is complete
  		ReMount(true);
+-- 
+2.7.4
+
+
+From d6e30032bda110b1056c71a8e417b302e41fa773 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sun, 1 Jan 2017 12:14:52 -0800
+Subject: [PATCH 3/3] Fix build in CM14.1
+
+Based on various people's patches...
+
+Change-Id: I5b92bc0dfa87728881056b4f3b9c947150544085
+---
+ minadbd/Android.mk | 2 +-
+ updater/Android.mk | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/minadbd/Android.mk b/minadbd/Android.mk
+index 3d675dd..7223221 100644
+--- a/minadbd/Android.mk
++++ b/minadbd/Android.mk
+@@ -22,7 +22,7 @@ LOCAL_MODULE := libminadbd
+ LOCAL_CFLAGS := $(minadbd_cflags)
+ LOCAL_CONLY_FLAGS := -Wimplicit-function-declaration
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/.. system/core/adb
+-LOCAL_WHOLE_STATIC_LIBRARIES := libadbd
++LOCAL_WHOLE_STATIC_LIBRARIES := libadbd libcrypto_utils_static
+ LOCAL_SHARED_LIBRARIES := libbase liblog libcutils libc
+ 
+ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
+diff --git a/updater/Android.mk b/updater/Android.mk
+index 23ba592..d976929 100644
+--- a/updater/Android.mk
++++ b/updater/Android.mk
+@@ -51,8 +51,8 @@ LOCAL_STATIC_LIBRARIES += libflashutils libmmcutils libbmlutils
+ LOCAL_STATIC_LIBRARIES += libbz
+ LOCAL_STATIC_LIBRARIES += libcutils liblog libc
+ LOCAL_STATIC_LIBRARIES += libselinux
++LOCAL_STATIC_LIBRARIES += libcrypto_utils_static
+ 
+-LOCAL_STATIC_LIBRARIES += libselinux
+ tune2fs_static_libraries := \
+  libext2_com_err \
+  libext2_blkid \
+@@ -67,6 +67,7 @@ endif
+ 
+ LOCAL_C_INCLUDES += external/e2fsprogs/misc
+ LOCAL_C_INCLUDES += $(LOCAL_PATH)/..
++LOCAL_C_INCLUDES += system/core/libcrypto_utils/include
+ 
+ # Each library in TARGET_RECOVERY_UPDATER_LIBS should have a function
+ # named "Register_<libname>()".  Here we emit a little C function that
 -- 
 2.7.4
 

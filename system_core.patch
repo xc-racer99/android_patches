@@ -1,35 +1,7 @@
-From 794dce4ba3d075c7899b8ce2928e4244d5585ae3 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Thu, 25 Aug 2016 21:31:18 -0700
-Subject: [PATCH 1/3] core: Don't try to flash recovery
-
-Just don't.  Would totally screw up the device if it succeeded...
----
- rootdir/init.rc | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/rootdir/init.rc b/rootdir/init.rc
-index 3466dce..b3709d6 100644
---- a/rootdir/init.rc
-+++ b/rootdir/init.rc
-@@ -636,6 +636,6 @@ on property:ro.debuggable=1
-     chmod 0773 /data/misc/trace
-     start console
- 
--service flash_recovery /system/bin/install-recovery.sh
--    class main
--    oneshot
-+#service flash_recovery /system/bin/install-recovery.sh
-+#    class main
-+#    oneshot
--- 
-2.7.4
-
-
-From efd881747d25fdbae50512b54be1cd045c470458 Mon Sep 17 00:00:00 2001
+From 759082204f9b897deeb9aa71dcc7cb4c44f98b33 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 30 Sep 2016 09:37:56 -0700
-Subject: [PATCH 2/3] Revert "libnetutils: Add synchronization per socket full
+Subject: [PATCH] Revert "libnetutils: Add synchronization per socket full
  operation"
 
 Wreaks havoc with our data connection
@@ -69,7 +41,7 @@ index d23afd3..5dfb3e8 100644
  
    ifc_close();
 diff --git a/libnetutils/ifc_utils.c b/libnetutils/ifc_utils.c
-index eae32ce..f9f62f8 100644
+index 7739cf4..c4ec633 100644
 --- a/libnetutils/ifc_utils.c
 +++ b/libnetutils/ifc_utils.c
 @@ -19,7 +19,6 @@
@@ -122,7 +94,7 @@ index eae32ce..f9f62f8 100644
  }
  
  static void ifc_init_ifr(const char *name, struct ifreq *ifr)
-@@ -561,7 +553,6 @@ int ifc_act_on_ipv4_route(int action, const char *ifname, struct in_addr dst, in
+@@ -560,7 +552,6 @@ int ifc_act_on_ipv4_route(int action, const char *ifname, struct in_addr dst, in
      ifc_init();
  
      if (ifc_ctl_sock < 0) {
@@ -130,81 +102,6 @@ index eae32ce..f9f62f8 100644
          return -errno;
      }
  
--- 
-2.7.4
-
-
-From efd032ded41ab80921c10e2ebff69871532e96c9 Mon Sep 17 00:00:00 2001
-From: Steve Kondik <steve@cyngn.com>
-Date: Wed, 31 Aug 2016 02:31:13 -0700
-Subject: [PATCH 3/3] adb: Check for alternate shell paths
-
- * Check for persist.sys.adb.shell first
- * Check for /sbin/sh (recovery)
-
-Change-Id: I191b9289b176809ef754d7a8126acfd355ab009f
----
- adb/shell_service.cpp | 23 ++++++++++++++++++++---
- 1 file changed, 20 insertions(+), 3 deletions(-)
-
-diff --git a/adb/shell_service.cpp b/adb/shell_service.cpp
-index 104f399..61b104e 100644
---- a/adb/shell_service.cpp
-+++ b/adb/shell_service.cpp
-@@ -85,6 +85,7 @@
- #include <pty.h>
- #include <pwd.h>
- #include <sys/select.h>
-+#include <sys/stat.h>
- #include <termios.h>
- 
- #include <memory>
-@@ -103,6 +104,8 @@
- #include "adb_utils.h"
- #include "security_log_tags.h"
- 
-+#include "cutils/properties.h"
-+
- namespace {
- 
- void init_subproc_child()
-@@ -228,6 +231,7 @@ bool Subprocess::ForkAndExec(std::string* error) {
-     ScopedFd child_stdinout_sfd, child_stderr_sfd;
-     ScopedFd parent_error_sfd, child_error_sfd;
-     char pts_name[PATH_MAX];
-+    char propbuf[PATH_MAX];
- 
-     if (command_.empty()) {
-         __android_log_security_bswrite(SEC_TAG_ADB_SHELL_INTERACTIVE, "");
-@@ -334,12 +338,25 @@ bool Subprocess::ForkAndExec(std::string* error) {
-         parent_error_sfd.Reset();
-         close_on_exec(child_error_sfd.fd());
- 
-+        std::string shell_command;
-+        struct stat st;
-+        property_get("persist.sys.adb.shell", propbuf, "");
-+        if (propbuf[0] != '\0' && stat(propbuf, &st) == 0) {
-+            shell_command = propbuf;
-+        } else if (stat(_PATH_BSHELL2, &st) == 0) {
-+            shell_command = _PATH_BSHELL2;
-+        } else {
-+            shell_command = _PATH_BSHELL;
-+        }
-+
-         if (command_.empty()) {
--            execle(_PATH_BSHELL, _PATH_BSHELL, "-", nullptr, cenv.data());
-+            execle(shell_command.c_str(), shell_command.c_str(), "-", nullptr, cenv.data());
-         } else {
--            execle(_PATH_BSHELL, _PATH_BSHELL, "-c", command_.c_str(), nullptr, cenv.data());
-+            execle(shell_command.c_str(), shell_command.c_str(), "-c", command_.c_str(), nullptr, cenv.data());
-         }
--        WriteFdExactly(child_error_sfd.fd(), "exec '" _PATH_BSHELL "' failed: ");
-+
-+        std::string errmsg = "exec '" + shell_command + "' failed: ";
-+        WriteFdExactly(child_error_sfd.fd(), errmsg.c_str());
-         WriteFdExactly(child_error_sfd.fd(), strerror(errno));
-         child_error_sfd.Reset();
-         _Exit(1);
 -- 
 2.7.4
 

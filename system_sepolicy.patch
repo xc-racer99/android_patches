@@ -1,75 +1,24 @@
-From 54738c0de30c1f4f4e56ff7e0064376e00b98df9 Mon Sep 17 00:00:00 2001
+From d430d4c7f80420e9291d6c4935f12e3877b6c3ff Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
-Date: Sat, 27 Aug 2016 09:26:34 -0700
-Subject: [PATCH 1/2] sepolicy: Allow some execmods
+Date: Mon, 26 Dec 2016 13:48:20 -0800
+Subject: [PATCH] sepolicy: Allow gpsd access to /dev/__properties__
 
-Our blobs are so ancient, they need this...
+Change-Id: Idc5a39dd78d68f95f2bc5ac760622b4c09a29650
 ---
- domain.te | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ domain.te | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/domain.te b/domain.te
-index 45569de..2b89534 100644
+index abce29c..7410df9 100644
 --- a/domain.te
 +++ b/domain.te
-@@ -298,6 +298,7 @@ neverallow {
-   -dalvikcache_data_file
-   -system_data_file # shared libs in apks
-   -apk_data_file
-+  -system_app_data_file
- }:file no_x_file_perms;
- 
- neverallow { domain userdebug_or_eng(`-shell') } nativetest_data_file:file no_x_file_perms;
-@@ -306,7 +307,7 @@ neverallow { domain userdebug_or_eng(`-shell') } nativetest_data_file:file no_x_
+@@ -306,8 +306,8 @@ neverallow { domain userdebug_or_eng(`-shell') } nativetest_data_file:file no_x_
  neverallow { domain -init } property_data_file:dir no_w_dir_perms;
  neverallow { domain -init } property_data_file:file { no_w_file_perms no_x_file_perms };
  neverallow { domain -init } property_type:file { no_w_file_perms no_x_file_perms };
 -neverallow { domain -init } properties_device:file { no_w_file_perms no_x_file_perms };
-+neverallow { domain -init } properties_device:file { no_w_file_perms };
- neverallow { domain -init } properties_serial:file { no_w_file_perms no_x_file_perms };
- 
- # Only recovery should be doing writes to /system
-@@ -428,7 +429,7 @@ neverallow { domain userdebug_or_eng(`-dumpstate -shell -su') } su_exec:file no_
- # The only exceptions are for NDK text relocations associated with
- # https://code.google.com/p/android/issues/detail?id=23203
- # which, long term, need to go away.
--neverallow * {
-+neverallow { domain -audioserver -gpsd -mediaserver -rild -system_server } {
-   file_type
-   -system_data_file
-   -apk_data_file
-@@ -443,7 +444,7 @@ neverallow * self:process { execstack execheap };
- 
- # prohibit non-zygote spawned processes from using shared libraries
- # with text relocations. b/20013628 .
--neverallow { domain -appdomain } file_type:file execmod;
-+neverallow { domain -appdomain -audioserver -gpsd -mediaserver -rild -system_server } file_type:file execmod;
- 
- neverallow { domain -init } proc:{ file dir } mounton;
- 
--- 
-2.7.4
-
-
-From 5a043ef99d66dd942ad41b2ba48d7658e81db48e Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Mon, 26 Dec 2016 13:48:20 -0800
-Subject: [PATCH 2/2] sepolicy: Allow gpsd access to /dev/__properties__
-
-Since we're already allowing execmod's what another change :/
----
- domain.te | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/domain.te b/domain.te
-index 2b89534..65105bf 100644
---- a/domain.te
-+++ b/domain.te
-@@ -308,7 +308,7 @@ neverallow { domain -init } property_data_file:dir no_w_dir_perms;
- neverallow { domain -init } property_data_file:file { no_w_file_perms no_x_file_perms };
- neverallow { domain -init } property_type:file { no_w_file_perms no_x_file_perms };
- neverallow { domain -init } properties_device:file { no_w_file_perms };
 -neverallow { domain -init } properties_serial:file { no_w_file_perms no_x_file_perms };
++neverallow { domain -init -gpsd -gpsd-shim } properties_device:file { no_w_file_perms no_x_file_perms };
 +neverallow { domain -init -gpsd } properties_serial:file { no_w_file_perms no_x_file_perms };
  
  # Only recovery should be doing writes to /system

@@ -1,7 +1,7 @@
-From c69b75a639f2fddfa916b532d6a9a9ff52c06946 Mon Sep 17 00:00:00 2001
+From 4cb1791be705ec873357ded125b04df811d43eb4 Mon Sep 17 00:00:00 2001
 From: Benoit Mauduit <bmauduit@beneth.fr>
 Date: Wed, 22 Jun 2016 15:04:56 +0200
-Subject: [PATCH 1/2] Add signature Spoofing permission
+Subject: [PATCH 1/3] Add signature Spoofing permission
 
 This is needed by GmsCore (https://microg.org/) to pretend
 the existence of the official Play Services to applications calling
@@ -98,10 +98,10 @@ index 5fd9c58..288b263 100644
 2.7.4
 
 
-From 3de5e51b41c1a8935788875dc3731c7895fc41d3 Mon Sep 17 00:00:00 2001
+From a04c71759cc3e222c5444f17e101b80e396221b0 Mon Sep 17 00:00:00 2001
 From: danielegobbetti <d.gobbetti@peer.biz>
 Date: Thu, 3 Nov 2016 00:22:00 -0700
-Subject: [PATCH 2/2] base: [MicroG] Allow location providers also outside of
+Subject: [PATCH 2/3] base: [MicroG] Allow location providers also outside of
  /system
 
 ---
@@ -122,6 +122,51 @@ index 2ff036b..9141db2 100644
                  set.addAll(Arrays.asList(sigs));
                  sigSets.add(set);
              } catch (NameNotFoundException e) {
+-- 
+2.7.4
+
+
+From d198fef2be0cf9c274dafd183788bb04e1866ea3 Mon Sep 17 00:00:00 2001
+From: Trishool Narayanasetty <tnarayan@codeaurora.org>
+Date: Thu, 4 Sep 2014 22:24:40 +0530
+Subject: [PATCH 3/3] SystemServer: Do not start Atlas Service on lowram
+ devices.
+
+Provide an on/off switch to control atlas service at start-up. This
+service is disabled by default on lowram devices to save memory.
+Atlas service is responsible for pre-loading drawables which
+can be shareable among the applications. Found that the probability
+of using same drawables in different apps concurrently is very less.
+However it allocates fixed size of ion buffer based on config.
+So by disabling it this memory overhead can be avoided. We are safe
+to disable this service as it does not block any functionality.
+
+Change-Id: I14599125c717b61f3ea5cded376fcc1802281756
+---
+ services/java/com/android/server/SystemServer.java | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/services/java/com/android/server/SystemServer.java b/services/java/com/android/server/SystemServer.java
+index 7ebdd31..87641fa 100644
+--- a/services/java/com/android/server/SystemServer.java
++++ b/services/java/com/android/server/SystemServer.java
+@@ -553,6 +553,7 @@ public final class SystemServer {
+         boolean disableSamplingProfiler = SystemProperties.getBoolean("config.disable_samplingprof",
+                 false);
+         boolean isEmulator = SystemProperties.get("ro.kernel.qemu").equals("1");
++        boolean disableAtlas = SystemProperties.getBoolean("config.disable_atlas", false);
+ 
+         try {
+             Slog.i(TAG, "Reading configuration...");
+@@ -1095,7 +1096,7 @@ public final class SystemServer {
+                 mSystemServiceManager.startService(DreamManagerService.class);
+             }
+ 
+-            if (!disableNonCoreServices && ZygoteInit.PRELOAD_RESOURCES) {
++            if (!disableNonCoreServices && ZygoteInit.PRELOAD_RESOURCES && !disableAtlas) {
+                 traceBeginAndSlog("StartAssetAtlasService");
+                 try {
+                     atlas = new AssetAtlasService(context);
 -- 
 2.7.4
 

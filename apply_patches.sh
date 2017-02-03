@@ -39,7 +39,3 @@ for CURR_PATCH in `find $SCRIPTPATH -name "*.patch" -printf "%f\n"`; do
 		echo Patch applied !
 	fi
 done
-
-# We don't support something with an underscore in its pathname, so manually run it
-cd $SCRIPTPATH$ROOT_LOCATION/hardware/libhardware_legacy
-git am $SCRIPTPATH/hardware_libhardware_legacy.diff

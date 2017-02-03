@@ -1,4 +1,4 @@
-From 99838f7bc26f079058da9f331fb6b8cb15129d54 Mon Sep 17 00:00:00 2001
+From 22fb6bbccb10c05027ebbdfb766f8ebd4ca00c61 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 12 Apr 2016 19:02:17 -0700
 Subject: [PATCH] bionic: Restore non-pie support
@@ -10,20 +10,20 @@ Change-Id: I7b1c48775f7fba418db4da9c472d3951a6f2139f
  2 files changed, 6 insertions(+)
 
 diff --git a/linker/Android.mk b/linker/Android.mk
-index 7221d12..371c795 100644
+index 0d592c9..f9485c9 100644
 --- a/linker/Android.mk
 +++ b/linker/Android.mk
-@@ -54,6 +54,10 @@ ifeq ($(TARGET_IS_64_BIT),true)
- LOCAL_CPPFLAGS += -DTARGET_IS_64_BIT
+@@ -58,6 +58,10 @@ ifeq ($(TARGET_NEEDS_PLATFORM_TEXT_RELOCATIONS),true)
+ LOCAL_CPPFLAGS += -DTARGET_NEEDS_PLATFORM_TEXT_RELOCATIONS
  endif
  
 +ifeq ($(TARGET_ENABLE_NON_PIE_SUPPORT),true)
-+    LOCAL_CFLAGS += -DENABLE_NON_PIE_SUPPORT
++LOCAL_CFLAGS += -DENABLE_NON_PIE_SUPPORT
 +endif
 +
- ifeq ($(TARGET_NEEDS_PLATFORM_TEXT_RELOCATIONS),true)
- ifeq ($(user_variant),user)
- $(error Do not enable text relocations on user builds)
+ # We need to access Bionic private headers in the linker.
+ LOCAL_CFLAGS += -I$(LOCAL_PATH)/../libc/
+ 
 diff --git a/linker/linker.cpp b/linker/linker.cpp
 index 6cdf1f8..2115469 100644
 --- a/linker/linker.cpp

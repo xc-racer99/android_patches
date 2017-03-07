@@ -1,7 +1,7 @@
-From 2c3e582ee3cd536bd0a6f41f1781a5cde9bbc071 Mon Sep 17 00:00:00 2001
+From a27723a0193a21a2ef75242e1fd01f65d28fd224 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 15 Dec 2015 18:57:03 -0800
-Subject: [PATCH 1/2] recovery: Do not pack relocations for flashutils
+Subject: [PATCH 1/3] recovery: Do not pack relocations for flashutils
 
 Needed for Marshmallow+
 
@@ -42,28 +42,27 @@ index ab552b1..75c7cb0 100644
 2.7.4
 
 
-From b322f8cb7b8a4766ad9102deedff54e9eb5e0bae Mon Sep 17 00:00:00 2001
+From e4b9f849e97b80fd8e9bf950895580964e8b1f9a Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 24 Apr 2016 15:54:42 -0700
-Subject: [PATCH 2/2] recovery: Fix missing selinux contexts on yaffs2 after
+Subject: [PATCH 2/3] recovery: Fix missing selinux contexts on yaffs2 after
  restore
 
 After restoring a yaffs2 partition, the root of the partition loses its selinux context.  Read from file_contexts and set the default file_context to the folder
 
 Change-Id: I79a693812cf49fb4ee15e54451c200b3916b8a8a
 ---
- partition.cpp | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ partition.cpp | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
 diff --git a/partition.cpp b/partition.cpp
-index 89650db..32c410c 100644
+index 8832909..86b5800 100644
 --- a/partition.cpp
 +++ b/partition.cpp
-@@ -2431,6 +2431,29 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
+@@ -2478,6 +2478,28 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
  		}
  	}
  #endif
-+#ifdef HAVE_SELINUX
 +	if (Restore_File_System == "yaffs2") {
 +		// Fix contexts on folder
 +		char *oldcontext, *newcontext;
@@ -85,10 +84,42 @@ index 89650db..32c410c 100644
 +		freecon(oldcontext);
 +		freecon(newcontext);
 +	}
-+#endif
++
  	if (Mount_Read_Only || Mount_Flags & MS_RDONLY)
  		// Remount as read only when restoration is complete
  		ReMount(true);
+-- 
+2.7.4
+
+
+From 56aff59eb602d385f4cd3efc4abb766eae719596 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 6 Mar 2017 21:30:35 -0800
+Subject: [PATCH 3/3] Fix f2fs location for AOSP
+
+Probably breaks everything else, but everyone else is breaking AOSP...
+---
+ prebuilt/Android.mk | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/prebuilt/Android.mk b/prebuilt/Android.mk
+index e34889e..ca22a4f 100644
+--- a/prebuilt/Android.mk
++++ b/prebuilt/Android.mk
+@@ -204,11 +204,8 @@ ifeq ($(TARGET_USERIMAGES_USE_F2FS), true)
+     ifeq ($(shell test $(CM_PLATFORM_SDK_VERSION) -ge 4; echo $$?),0)
+         RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/mkfs.f2fs
+         RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libf2fs.so
+-    else ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 24; echo $$?),0)
+-        RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/mkfs.f2fs
+-        RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libf2fs.so
+-    else ifeq ($(shell test $(PLATFORM_SDK_VERSION) -eq 23; echo $$?),0)
+-        RELINK_SOURCE_FILES += $(TARGET_RECOVERY_ROOT_OUT)/sbin/mkfs.f2fs
++    else ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 23; echo $$?),0)
++         RELINK_SOURCE_FILES += $(TARGET_RECOVERY_ROOT_OUT)/sbin/mkfs.f2fs
+     else ifneq (,$(filter $(PLATFORM_SDK_VERSION), 21 22))
+         RELINK_SOURCE_FILES += $(TARGET_ROOT_OUT_SBIN)/mkfs.f2fs
+     else
 -- 
 2.7.4
 

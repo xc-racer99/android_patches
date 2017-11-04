@@ -1,4 +1,4 @@
-From 73c96390b7e4c714800ce37a73a05eddcb764dfb Mon Sep 17 00:00:00 2001
+From 3f1ee4b04de518d9a02895cb0927c33b8005d44b Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mikeioannina@gmail.com>
 Date: Wed, 28 Oct 2015 17:09:40 -0700
 Subject: [PATCH 1/4] Revert "Remove mkyaffs2image references."
@@ -10,7 +10,7 @@ Subject: [PATCH 1/4] Revert "Remove mkyaffs2image references."
  2 files changed, 16 insertions(+), 2 deletions(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index 2031132..90ebb2e 100644
+index d8b4ef8..6fb4aee 100644
 --- a/core/Makefile
 +++ b/core/Makefile
 @@ -745,6 +745,9 @@ INTERNAL_USERIMAGES_EXT_VARIANT := ext4
@@ -33,15 +33,15 @@ index 2031132..90ebb2e 100644
  
  ifneq (true,$(TARGET_USERIMAGES_SPARSE_SQUASHFS_DISABLED))
    INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG := -s
-@@ -813,6 +819,7 @@ $(if $(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "vendor_squashf
- $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH),$(hide) echo "vendor_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH)" >> $(1))
+@@ -816,6 +822,7 @@ $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH),$(hide) echo "v
  $(if $(BOARD_OEMIMAGE_PARTITION_SIZE),$(hide) echo "oem_size=$(BOARD_OEMIMAGE_PARTITION_SIZE)" >> $(1))
  $(if $(BOARD_OEMIMAGE_JOURNAL_SIZE),$(hide) echo "oem_journal_size=$(BOARD_OEMIMAGE_JOURNAL_SIZE)" >> $(1))
+ $(if $(BOARD_OEMIMAGE_EXTFS_INODE_COUNT),$(hide) echo "oem_extfs_inode_count=$(BOARD_OEMIMAGE_EXTFS_INODE_COUNT)" >> $(1))
 +$(if $(mkyaffs2_extra_flags),$(hide) echo "mkyaffs2_extra_flags=$(mkyaffs2_extra_flags)" >> $(1))
  $(if $(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG),$(hide) echo "extfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG)" >> $(1))
  $(if $(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG),$(hide) echo "squashfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG)" >> $(1))
  $(hide) echo "selinux_fc=$(SELINUX_FC)" >> $(1)
-@@ -1056,11 +1063,16 @@ endif
+@@ -1059,11 +1066,16 @@ endif
  .PHONY: recoveryimage
  recoveryimage: $(INSTALLED_RECOVERYIMAGE_TARGET) $(RECOVERY_RESOURCE_ZIP)
  
@@ -60,7 +60,7 @@ index 2031132..90ebb2e 100644
  BOARD_NAND_SPARE_SIZE := 64
  endif
  
-@@ -1565,6 +1577,7 @@ OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
+@@ -1572,6 +1584,7 @@ OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
    $(HOST_OUT_EXECUTABLES)/mkbootfs \
    $(HOST_OUT_EXECUTABLES)/mkbootimg \
    $(HOST_OUT_EXECUTABLES)/fs_config \
@@ -69,10 +69,10 @@ index 2031132..90ebb2e 100644
    $(HOST_OUT_EXECUTABLES)/bsdiff \
    $(HOST_OUT_EXECUTABLES)/imgdiff \
 diff --git a/core/config.mk b/core/config.mk
-index 94c880f..87e0f8b 100644
+index 6152060..8b61849 100644
 --- a/core/config.mk
 +++ b/core/config.mk
-@@ -528,6 +528,7 @@ MKBOOTIMG := $(HOST_OUT_EXECUTABLES)/mkbootimg$(HOST_EXECUTABLE_SUFFIX)
+@@ -529,6 +529,7 @@ MKBOOTIMG := $(HOST_OUT_EXECUTABLES)/mkbootimg$(HOST_EXECUTABLE_SUFFIX)
  else
  MKBOOTIMG := $(BOARD_CUSTOM_MKBOOTIMG)
  endif
@@ -84,7 +84,7 @@ index 94c880f..87e0f8b 100644
 2.7.4
 
 
-From 95230f7ad2e374af40d799fb8007bcf5b929fe2a Mon Sep 17 00:00:00 2001
+From e37f9d7d2d15445770ff827f428bffb16bc56ca5 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Sat, 22 Nov 2014 08:43:59 -0800
 Subject: [PATCH 2/4] build: Add option to disable block-based ota
@@ -102,10 +102,10 @@ Usage: export BLOCK_BASED_OTA=false
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index 90ebb2e..ae9b6ee 100644
+index 6fb4aee..ef1d713 100644
 --- a/core/Makefile
 +++ b/core/Makefile
-@@ -1945,6 +1945,12 @@ ifeq ($(TARGET_BUILD_TYPE),debug)
+@@ -1953,6 +1953,12 @@ ifeq ($(TARGET_BUILD_TYPE),debug)
  endif
  name := $(name)-ota-$(FILE_NAME_TAG)
  
@@ -118,7 +118,7 @@ index 90ebb2e..ae9b6ee 100644
  INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
  
  $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
-@@ -1953,7 +1959,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
+@@ -1961,7 +1967,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	@echo "Package OTA: $@"
  	$(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH MKBOOTIMG=$(MKBOOTIMG) \
  	   ./build/tools/releasetools/ota_from_target_files -v \
@@ -131,7 +131,7 @@ index 90ebb2e..ae9b6ee 100644
 2.7.4
 
 
-From 35758c42710ed5973b24048812de3d46472f9dc7 Mon Sep 17 00:00:00 2001
+From f6e6438db901668d90265d1d1139529cc1bc070a Mon Sep 17 00:00:00 2001
 From: Ricardo Cerqueira <cyanogenmod@cerqueira.org>
 Date: Tue, 12 Apr 2011 10:57:22 +0100
 Subject: [PATCH 3/4] Allow a device to generically define its own headers
@@ -184,7 +184,7 @@ index 7b22903..7e52ece 100644
 2.7.4
 
 
-From cf6b59866baee61b4d1c30a4b5202046f7ad341e Mon Sep 17 00:00:00 2001
+From 446360aaee89fcd177c75371ecd9f95651163828 Mon Sep 17 00:00:00 2001
 From: Steve Kondik <shade@chemlab.org>
 Date: Fri, 6 Nov 2015 14:14:25 +0100
 Subject: [PATCH 4/4] Allow override of device asserts, including multi-device
@@ -203,10 +203,10 @@ Conflicts:
  3 files changed, 24 insertions(+), 5 deletions(-)
 
 diff --git a/core/Makefile b/core/Makefile
-index ae9b6ee..bba3503 100644
+index ef1d713..5f047d7 100644
 --- a/core/Makefile
 +++ b/core/Makefile
-@@ -1955,6 +1955,12 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
+@@ -1963,6 +1963,12 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
  
  $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
  
@@ -219,7 +219,7 @@ index ae9b6ee..bba3503 100644
  $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	@echo "Package OTA: $@"
  	$(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH MKBOOTIMG=$(MKBOOTIMG) \
-@@ -1962,6 +1968,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
+@@ -1970,6 +1976,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
  	   $(block_based) \
  	   -p $(HOST_OUT) \
  	   -k $(KEY_CERT_PAIR) \
@@ -249,7 +249,7 @@ index 2ecc5cb..8136824 100644
  
    def AssertSomeBootloader(self, *bootloaders):
 diff --git a/tools/releasetools/ota_from_target_files.py b/tools/releasetools/ota_from_target_files.py
-index d3d4974..0ba190d 100755
+index d409d94..92d6c71 100755
 --- a/tools/releasetools/ota_from_target_files.py
 +++ b/tools/releasetools/ota_from_target_files.py
 @@ -124,6 +124,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
@@ -282,7 +282,7 @@ index d3d4974..0ba190d 100755
      script.AssertDevice(device)
    else:
      if oem_dict is None:
-@@ -1949,6 +1956,8 @@ def main(argv):
+@@ -2014,6 +2021,8 @@ def main(argv):
        OPTIONS.payload_signer = a
      elif o == "--payload_signer_args":
        OPTIONS.payload_signer_args = shlex.split(a)
@@ -291,7 +291,7 @@ index d3d4974..0ba190d 100755
      else:
        return False
      return True
-@@ -1980,6 +1989,7 @@ def main(argv):
+@@ -2045,6 +2054,7 @@ def main(argv):
                                   "log_diff=",
                                   "payload_signer=",
                                   "payload_signer_args=",

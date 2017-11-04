@@ -1,7 +1,7 @@
 From 14f05df4cb23d0afbbe975c0cb8c38c64f46135c Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 25 Aug 2016 21:31:18 -0700
-Subject: [PATCH 1/4] core: Don't try to flash recovery
+Subject: [PATCH 1/3] core: Don't try to flash recovery
 
 Just don't.  Would totally screw up the device if it succeeded...
 ---
@@ -29,7 +29,7 @@ index a22d5c1..90d4ae0 100644
 From a63e6a2f7f01dc56ee9c6f91bd2f0fb2582b4741 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 30 Sep 2016 09:37:56 -0700
-Subject: [PATCH 2/4] Revert "libnetutils: Add synchronization per socket full
+Subject: [PATCH 2/3] Revert "libnetutils: Add synchronization per socket full
  operation"
 
 Wreaks havoc with our data connection
@@ -137,7 +137,7 @@ index eae32ce..f9f62f8 100644
 From d1699f5624c6f26e81ecef152dda5f601ee15668 Mon Sep 17 00:00:00 2001
 From: Steve Kondik <steve@cyngn.com>
 Date: Wed, 31 Aug 2016 02:31:13 -0700
-Subject: [PATCH 3/4] adb: Check for alternate shell paths
+Subject: [PATCH 3/3] adb: Check for alternate shell paths
 
  * Check for persist.sys.adb.shell first
  * Check for /sbin/sh (recovery)
@@ -205,35 +205,6 @@ index 104f399..61b104e 100644
          WriteFdExactly(child_error_sfd.fd(), strerror(errno));
          child_error_sfd.Reset();
          _Exit(1);
--- 
-2.7.4
-
-
-From f4544b9301561ff8365df3915a1acc3532c49a31 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Sun, 12 Feb 2017 19:36:34 -0800
-Subject: [PATCH 4/4] Do Not Merge: Force disable adb auth
-
-For some reason, adb authorization is totally busted - works first time, afterwards it doesn't work and adb keeps getting killed by signal 11
-
-Since I don't want to track down the real issue but want a user build, this is the least invasive change
----
- adb/adb_auth.cpp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/adb/adb_auth.cpp b/adb/adb_auth.cpp
-index 1ffab09..35f4a20 100644
---- a/adb/adb_auth.cpp
-+++ b/adb/adb_auth.cpp
-@@ -28,7 +28,7 @@
- #include "adb.h"
- #include "transport.h"
- 
--bool auth_required = true;
-+bool auth_required = false;
- 
- void send_auth_request(atransport *t)
- {
 -- 
 2.7.4
 

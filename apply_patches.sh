@@ -28,7 +28,7 @@ for CURR_PATCH in `find $SCRIPTPATH -name "*.patch" -printf "%f\n"`; do
 	cd $SCRIPTPATH$ROOT_LOCATION$DIRECTORY || exit
 	ABS_PATCHFILE=$SCRIPTPATH$PATCHFILE
 
-	CMD_OUTPUT=$(git am $ABS_PATCHFILE)
+	CMD_OUTPUT=$(git am -3 $ABS_PATCHFILE)
 
 	echo $CMD_OUTPUT
 

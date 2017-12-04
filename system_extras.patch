@@ -1,4 +1,4 @@
-From c7032c3e9c420885ebc4adb73c3b6c3c59be3bf4 Mon Sep 17 00:00:00 2001
+From 94d9ee26179aaddb5d158e183743adec1dfc1db2 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 14 Jan 2017 19:38:16 -0800
 Subject: [PATCH] Add static make_ext4fs build
@@ -8,7 +8,7 @@ Subject: [PATCH] Add static make_ext4fs build
  1 file changed, 21 insertions(+)
 
 diff --git a/ext4_utils/Android.mk b/ext4_utils/Android.mk
-index a8362b2..9be0fda 100644
+index a8362b22..9be0fda6 100644
 --- a/ext4_utils/Android.mk
 +++ b/ext4_utils/Android.mk
 @@ -110,6 +110,27 @@ LOCAL_SHARED_LIBRARIES := \
@@ -40,5 +40,5 @@ index a8362b2..9be0fda 100644
  include $(CLEAR_VARS)
  LOCAL_SRC_FILES := ext2simg.c
 -- 
-2.7.4
+2.11.0
 

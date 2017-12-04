@@ -1,4 +1,4 @@
-From 14f05df4cb23d0afbbe975c0cb8c38c64f46135c Mon Sep 17 00:00:00 2001
+From 9207102b0b8db520dc2dad681dba5fe353b818fb Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 25 Aug 2016 21:31:18 -0700
 Subject: [PATCH 1/3] core: Don't try to flash recovery
@@ -9,10 +9,10 @@ Just don't.  Would totally screw up the device if it succeeded...
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index a22d5c1..90d4ae0 100644
+index 7dc9e5509..adc062b2d 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
-@@ -664,6 +664,6 @@ on property:ro.debuggable=1
+@@ -656,6 +656,6 @@ on property:ro.debuggable=1
      chmod 0773 /data/misc/trace
      start console
  
@@ -23,10 +23,10 @@ index a22d5c1..90d4ae0 100644
 +#    class main
 +#    oneshot
 -- 
-2.7.4
+2.11.0
 
 
-From a63e6a2f7f01dc56ee9c6f91bd2f0fb2582b4741 Mon Sep 17 00:00:00 2001
+From af119e76f984cf28d0d8e1083669c6eda088da51 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 30 Sep 2016 09:37:56 -0700
 Subject: [PATCH 2/3] Revert "libnetutils: Add synchronization per socket full
@@ -40,7 +40,7 @@ This reverts commit cebcd450c6ca3de5106ef3d817d5b760f5d57fbe.
  2 files changed, 2 insertions(+), 14 deletions(-)
 
 diff --git a/libnetutils/dhcptool.c b/libnetutils/dhcptool.c
-index d23afd3..5dfb3e8 100644
+index d23afd3bd..5dfb3e8bf 100644
 --- a/libnetutils/dhcptool.c
 +++ b/libnetutils/dhcptool.c
 @@ -14,7 +14,6 @@
@@ -69,7 +69,7 @@ index d23afd3..5dfb3e8 100644
  
    ifc_close();
 diff --git a/libnetutils/ifc_utils.c b/libnetutils/ifc_utils.c
-index eae32ce..f9f62f8 100644
+index eae32ce36..f9f62f8ce 100644
 --- a/libnetutils/ifc_utils.c
 +++ b/libnetutils/ifc_utils.c
 @@ -19,7 +19,6 @@
@@ -131,10 +131,10 @@ index eae32ce..f9f62f8 100644
      }
  
 -- 
-2.7.4
+2.11.0
 
 
-From d1699f5624c6f26e81ecef152dda5f601ee15668 Mon Sep 17 00:00:00 2001
+From a2835b74f13da15dd1ef59ef2a1e9dcfe3f6be9b Mon Sep 17 00:00:00 2001
 From: Steve Kondik <steve@cyngn.com>
 Date: Wed, 31 Aug 2016 02:31:13 -0700
 Subject: [PATCH 3/3] adb: Check for alternate shell paths
@@ -148,7 +148,7 @@ Change-Id: I191b9289b176809ef754d7a8126acfd355ab009f
  1 file changed, 20 insertions(+), 3 deletions(-)
 
 diff --git a/adb/shell_service.cpp b/adb/shell_service.cpp
-index 104f399..61b104e 100644
+index 104f39947..61b104e86 100644
 --- a/adb/shell_service.cpp
 +++ b/adb/shell_service.cpp
 @@ -85,6 +85,7 @@
@@ -206,5 +206,5 @@ index 104f399..61b104e 100644
          child_error_sfd.Reset();
          _Exit(1);
 -- 
-2.7.4
+2.11.0
 

@@ -1,4 +1,4 @@
-From c7c91043639bb38715b0214b4c97be6ed0b88ac5 Mon Sep 17 00:00:00 2001
+From eb2233aee16033fadbd28f87f78c55acc9a560b5 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Fri, 26 Aug 2016 18:10:53 -0700
 Subject: [PATCH 1/2] bt: Fix compilation for GATT/SMP/LE disabled
@@ -15,7 +15,7 @@ and play audio to it
  6 files changed, 43 insertions(+)
 
 diff --git a/Android.mk b/Android.mk
-index 29760e4..8ab15ee 100644
+index 29760e4e0..8ab15eedb 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -41,6 +41,11 @@ bluetooth_CFLAGS += \
@@ -31,7 +31,7 @@ index 29760e4..8ab15ee 100644
  bluetooth_CPPFLAGS :=
  
 diff --git a/bta/dm/bta_dm_act.c b/bta/dm/bta_dm_act.c
-index acda747..e5a424d 100644
+index 1bf741d92..d92aba836 100644
 --- a/bta/dm/bta_dm_act.c
 +++ b/bta/dm/bta_dm_act.c
 @@ -383,7 +383,9 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
@@ -56,10 +56,10 @@ index acda747..e5a424d 100644
          memset(&bta_dm_conn_srvcs, 0, sizeof(bta_dm_conn_srvcs));
          memset(&bta_dm_di_cb, 0, sizeof(tBTA_DM_DI_CB));
 diff --git a/btif/src/btif_dm.c b/btif/src/btif_dm.c
-index f70e4fa..cc932ab 100644
+index f54b64277..4514bd93f 100644
 --- a/btif/src/btif_dm.c
 +++ b/btif/src/btif_dm.c
-@@ -2684,8 +2684,10 @@ bt_status_t btif_dm_get_remote_services_by_transport(bt_bdaddr_t *remote_addr, c
+@@ -2710,8 +2710,10 @@ bt_status_t btif_dm_get_remote_services_by_transport(bt_bdaddr_t *remote_addr, c
      mask_ext.p_uuid = NULL;
      mask_ext.srvc_mask = BTA_ALL_SERVICE_MASK;
  
@@ -70,7 +70,7 @@ index f70e4fa..cc932ab 100644
  
      return BT_STATUS_SUCCESS;
  }
-@@ -2924,6 +2926,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
+@@ -2957,6 +2959,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
      strncpy(conf, recv, 64);
      conf[63] = 0; // null terminate
  
@@ -78,7 +78,7 @@ index f70e4fa..cc932ab 100644
      if ((pch = strtok(conf, ",")) != NULL)
          p_cfg->ble_auth_req = (UINT8) strtoul(pch, &endptr, 16);
      else
-@@ -2948,6 +2951,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
+@@ -2981,6 +2984,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
          p_cfg->ble_max_key_size =  (UINT8) strtoul(pch, &endptr, 16);
      else
          return FALSE;
@@ -87,7 +87,7 @@ index f70e4fa..cc932ab 100644
      return TRUE;
  }
 diff --git a/btif/src/btif_storage.c b/btif/src/btif_storage.c
-index 82d377d..1541edd 100644
+index 83dcc8c47..82d95c38a 100644
 --- a/btif/src/btif_storage.c
 +++ b/btif/src/btif_storage.c
 @@ -502,6 +502,7 @@ static void btif_read_le_key(const uint8_t key_type, const size_t key_len, bt_bd
@@ -107,7 +107,7 @@ index 82d377d..1541edd 100644
  
  /*******************************************************************************
 diff --git a/stack/l2cap/l2c_csm.c b/stack/l2cap/l2c_csm.c
-index dedffc8..1f939d5 100644
+index dedffc8a5..1f939d5f4 100644
 --- a/stack/l2cap/l2c_csm.c
 +++ b/stack/l2cap/l2c_csm.c
 @@ -172,8 +172,10 @@ static void l2c_csm_closed (tL2C_CCB *p_ccb, UINT16 event, void *p_data)
@@ -244,7 +244,7 @@ index dedffc8..1f939d5 100644
          else
          {
 diff --git a/stack/l2cap/l2c_utils.c b/stack/l2cap/l2c_utils.c
-index 58ac4b0..d956f1e 100644
+index 58ac4b06b..d956f1e2c 100644
 --- a/stack/l2cap/l2c_utils.c
 +++ b/stack/l2cap/l2c_utils.c
 @@ -253,6 +253,7 @@ void l2cu_release_lcb (tL2C_LCB *p_lcb)
@@ -296,10 +296,10 @@ index 58ac4b0..d956f1e 100644
      /* If here, no match found */
      return (NULL);
 -- 
-2.7.4
+2.11.0
 
 
-From c4494df90632d88f181c8f83468d070d26ff9359 Mon Sep 17 00:00:00 2001
+From b367515e864f5cd75041f4aef2cf116262ed2da1 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 11 Dec 2016 08:41:17 -0800
 Subject: [PATCH 2/2] Revert "Add BT_HCI_UNKNOWN_MESSAGE_TYPE log event"
@@ -313,7 +313,7 @@ This reverts commit e1c8ed17c7a35510f00997ca329687f73cd193d8.
  3 files changed, 12 insertions(+), 21 deletions(-)
 
 diff --git a/EventLogTags.logtags b/EventLogTags.logtags
-index dc1d239..32493d8 100644
+index dc1d239b7..32493d812 100644
 --- a/EventLogTags.logtags
 +++ b/EventLogTags.logtags
 @@ -35,4 +35,3 @@
@@ -322,7 +322,7 @@ index dc1d239..32493d8 100644
  1010001 bt_config_source (opcode|1)
 -1010002 bt_hci_unknown_type (hci_type|1)
 diff --git a/hci/src/hci_hal_h4.c b/hci/src/hci_hal_h4.c
-index 9c7afe5..062b6c0 100644
+index 9c7afe53d..062b6c0a6 100644
 --- a/hci/src/hci_hal_h4.c
 +++ b/hci/src/hci_hal_h4.c
 @@ -38,8 +38,6 @@
@@ -347,7 +347,7 @@ index 9c7afe5..062b6c0 100644
      }
  
 diff --git a/hci/test/hci_hal_h4_test.cpp b/hci/test/hci_hal_h4_test.cpp
-index 1b861a0..bf62405 100644
+index 1b861a0e7..bf6240519 100644
 --- a/hci/test/hci_hal_h4_test.cpp
 +++ b/hci/test/hci_hal_h4_test.cpp
 @@ -192,18 +192,17 @@ static void expect_socket_data(int fd, char first_byte, char *data) {
@@ -402,5 +402,5 @@ index 1b861a0..bf62405 100644
    // write_packet_reentry ensures the data has been received
    semaphore_free(reentry_semaphore);
 -- 
-2.7.4
+2.11.0
 

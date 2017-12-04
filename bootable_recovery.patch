@@ -1,4 +1,4 @@
-From a27723a0193a21a2ef75242e1fd01f65d28fd224 Mon Sep 17 00:00:00 2001
+From 79d9eec8bf2a0cf11901380f5cd276f3b1dec67c Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 15 Dec 2015 18:57:03 -0800
 Subject: [PATCH 1/3] recovery: Do not pack relocations for flashutils
@@ -11,7 +11,7 @@ Change-Id: Ie26150c26cb7ae8f4210f4f34c2f78dd6ad56eb0
  1 file changed, 3 insertions(+)
 
 diff --git a/flashutils/Android.mk b/flashutils/Android.mk
-index ab552b1..75c7cb0 100644
+index ab552b1e..75c7cb09 100644
 --- a/flashutils/Android.mk
 +++ b/flashutils/Android.mk
 @@ -50,6 +50,7 @@ LOCAL_UNSTRIPPED_PATH := $(PRODUCT_OUT)/symbols/utilities
@@ -39,10 +39,10 @@ index ab552b1..75c7cb0 100644
  
  #Added for dynamic building for TWRP:
 -- 
-2.7.4
+2.11.0
 
 
-From e4b9f849e97b80fd8e9bf950895580964e8b1f9a Mon Sep 17 00:00:00 2001
+From cbdfd47860390dd2981b7a8f0241360086c0c4c2 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 24 Apr 2016 15:54:42 -0700
 Subject: [PATCH 2/3] recovery: Fix missing selinux contexts on yaffs2 after
@@ -56,10 +56,10 @@ Change-Id: I79a693812cf49fb4ee15e54451c200b3916b8a8a
  1 file changed, 22 insertions(+)
 
 diff --git a/partition.cpp b/partition.cpp
-index 8832909..86b5800 100644
+index 543e8674..99cfb2d4 100644
 --- a/partition.cpp
 +++ b/partition.cpp
-@@ -2478,6 +2478,28 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
+@@ -2433,6 +2433,28 @@ bool TWPartition::Restore_Tar(PartitionSettings *part_settings) {
  		}
  	}
  #endif
@@ -89,10 +89,10 @@ index 8832909..86b5800 100644
  		// Remount as read only when restoration is complete
  		ReMount(true);
 -- 
-2.7.4
+2.11.0
 
 
-From 56aff59eb602d385f4cd3efc4abb766eae719596 Mon Sep 17 00:00:00 2001
+From dcb1408621dddcca47c55b2ad5d9e05a6a21b893 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Mon, 6 Mar 2017 21:30:35 -0800
 Subject: [PATCH 3/3] Fix f2fs location for AOSP
@@ -103,10 +103,10 @@ Probably breaks everything else, but everyone else is breaking AOSP...
  1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/prebuilt/Android.mk b/prebuilt/Android.mk
-index e34889e..ca22a4f 100644
+index f88f48fb..89d3b6c4 100644
 --- a/prebuilt/Android.mk
 +++ b/prebuilt/Android.mk
-@@ -204,11 +204,8 @@ ifeq ($(TARGET_USERIMAGES_USE_F2FS), true)
+@@ -202,11 +202,8 @@ ifeq ($(TARGET_USERIMAGES_USE_F2FS), true)
      ifeq ($(shell test $(CM_PLATFORM_SDK_VERSION) -ge 4; echo $$?),0)
          RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/mkfs.f2fs
          RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libf2fs.so
@@ -121,5 +121,5 @@ index e34889e..ca22a4f 100644
          RELINK_SOURCE_FILES += $(TARGET_ROOT_OUT_SBIN)/mkfs.f2fs
      else
 -- 
-2.7.4
+2.11.0
 

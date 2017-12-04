@@ -1,0 +1,154 @@
+From 7ed0c91c3ed0a207c7a82720d6d5116c06b16650 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 9 Nov 2017 16:25:06 -0800
+Subject: [PATCH] Add mksquashfs utility
+
+Change-Id: Ib9774aece0865806f8e10fdd30ec94c533067922
+---
+ squashfs-tools/Android.mk | 74 +++++++++++++++++++++++++++++++++++++++++++++++
+ squashfs-tools/restore.c  | 12 ++++----
+ 2 files changed, 80 insertions(+), 6 deletions(-)
+
+diff --git a/squashfs-tools/Android.mk b/squashfs-tools/Android.mk
+index 31d2356..6423ec7 100644
+--- a/squashfs-tools/Android.mk
++++ b/squashfs-tools/Android.mk
+@@ -39,3 +39,77 @@ LOCAL_SHARED_LIBRARIES := libcutils libselinux
+ LOCAL_STATIC_LIBRARIES := liblz4
+ 
+ include $(BUILD_HOST_EXECUTABLE)
++
++# static mksquashfs
++include $(CLEAR_VARS)
++LOCAL_MODULE := utility_mksquashfs
++LOCAL_SRC_FILES := \
++    mksquashfs.c \
++    read_fs.c \
++    action.c \
++    swap.c \
++    pseudo.c \
++    compressor.c \
++    sort.c \
++    progressbar.c \
++    read_file.c \
++    info.c \
++    restore.c \
++    process_fragments.c \
++    caches-queues-lists.c \
++    xattr.c \
++    read_xattrs.c \
++    gzip_wrapper.c \
++    android.c \
++    lz4_wrapper.c
++
++LOCAL_C_INCLUDES += \
++	external/zlib/src
++
++LOCAL_CFLAGS := -I -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_GNU_SOURCE -Wall \
++                -DCOMP_DEFAULT="\"lz4\"" -DGZIP_SUPPORT -DLZ4_SUPPORT -DXATTR_SUPPORT -DXATTR_DEFAULT
++
++
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := UTILITY_EXECUTABLES
++LOCAL_MODULE_PATH := $(PRODUCT_OUT)/utilities
++LOCAL_UNSTRIPPED_PATH := $(PRODUCT_OUT)/symbols/utilities
++LOCAL_MODULE_STEM := mksquashfs
++LOCAL_STATIC_LIBRARIES := libcutils libc libselinux liblz4 libz liblog
++LOCAL_FORCE_STATIC_EXECUTABLE := true
++LOCAL_PACK_MODULE_RELOCATIONS := false
++include $(BUILD_EXECUTABLE)
++
++# static unsquashfs
++include $(CLEAR_VARS)
++LOCAL_MODULE := utility_unsquashfs
++LOCAL_SRC_FILES := \
++    unsquashfs.c \
++    unsquash-1.c \
++    unsquash-2.c \
++    unsquash-3.c \
++    unsquash-4.c \
++    swap.c \
++    compressor.c \
++	unsquashfs_info.c \
++    unsquashfs_xattr.c \
++    read_xattrs.c \
++    gzip_wrapper.c \
++    android.c \
++    lz4_wrapper.c
++
++LOCAL_C_INCLUDES += \
++	external/zlib/src
++
++LOCAL_CFLAGS := -I -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_GNU_SOURCE -Wall \
++                -DCOMP_DEFAULT="\"lz4\"" -DGZIP_SUPPORT -DLZ4_SUPPORT -DXATTR_SUPPORT -DXATTR_DEFAULT
++
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := UTILITY_EXECUTABLES
++LOCAL_MODULE_PATH := $(PRODUCT_OUT)/utilities
++LOCAL_UNSTRIPPED_PATH := $(PRODUCT_OUT)/symbols/utilities
++LOCAL_MODULE_STEM := unsquashfs
++LOCAL_STATIC_LIBRARIES := libcutils libc libselinux liblz4 libz
++LOCAL_FORCE_STATIC_EXECUTABLE := true
++LOCAL_PACK_MODULE_RELOCATIONS := false
++include $(BUILD_EXECUTABLE)
+diff --git a/squashfs-tools/restore.c b/squashfs-tools/restore.c
+index 5e336b3..4b5125b 100644
+--- a/squashfs-tools/restore.c
++++ b/squashfs-tools/restore.c
+@@ -83,7 +83,7 @@ void *restore_thrd(void *arg)
+ 		disable_info();
+ 
+ 		/* first kill the reader thread */
+-		pthread_cancel(reader_thread);
++		pthread_kill(reader_thread, SIGKILL);
+ 		pthread_join(reader_thread, NULL);
+ 
+ 		/*
+@@ -94,7 +94,7 @@ void *restore_thrd(void *arg)
+ 
+ 		/* now kill the deflator thread(s) */
+ 		for(i = 0; i < processors; i++)
+-			pthread_cancel(deflator_thread[i]);
++			pthread_kill(deflator_thread[i], SIGKILL);
+ 		for(i = 0; i < processors; i++)
+ 			pthread_join(deflator_thread[i], NULL);
+ 
+@@ -106,7 +106,7 @@ void *restore_thrd(void *arg)
+ 
+ 		/* now kill the process fragment thread(s) */
+ 		for(i = 0; i < processors; i++)
+-			pthread_cancel(frag_thread[i]);
++			pthread_kill(frag_thread[i], SIGKILL);
+ 		for(i = 0; i < processors; i++)
+ 			pthread_join(frag_thread[i], NULL);
+ 
+@@ -117,7 +117,7 @@ void *restore_thrd(void *arg)
+ 		seq_queue_flush(to_main);
+ 
+ 		/* now kill the main thread */
+-		pthread_cancel(main_thread);
++		pthread_kill(main_thread, SIGKILL);
+ 		pthread_join(main_thread, NULL);
+ 
+ 		/* then flush the main thread to fragment deflator thread(s)
+@@ -127,7 +127,7 @@ void *restore_thrd(void *arg)
+ 
+ 		/* now kill the fragment deflator thread(s) */
+ 		for(i = 0; i < processors; i++)
+-			pthread_cancel(frag_deflator_thread[i]);
++			pthread_kill(frag_deflator_thread[i], SIGKILL);
+ 		for(i = 0; i < processors; i++)
+ 			pthread_join(frag_deflator_thread[i], NULL);
+ 
+@@ -138,7 +138,7 @@ void *restore_thrd(void *arg)
+ 		queue_flush(to_writer);
+ 
+ 		/* now kill the writer thread */
+-		pthread_cancel(writer_thread);
++		pthread_kill(writer_thread, SIGKILL);
+ 		pthread_join(writer_thread, NULL);
+ 
+ 		TRACE("All threads cancelled\n");
+-- 
+2.11.0
+

@@ -1,4 +1,4 @@
-From 7263ad2c3fdab2c2b53635e471c2431120ef6989 Mon Sep 17 00:00:00 2001
+From 7f179cca162603e3e0c210b7647e90a3869ef889 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Wed, 4 Nov 2015 15:44:44 -0800
 Subject: [PATCH] vold: Support internal storage partitions
@@ -288,11 +288,11 @@ index 39fc8f9..c43aae6 100644
      };
  
 diff --git a/main.cpp b/main.cpp
-index 9cbcf88..fc0b928 100644
+index 68477ac..ea99a31 100644
 --- a/main.cpp
 +++ b/main.cpp
-@@ -219,13 +219,9 @@ static int process_config(VolumeManager *vm) {
-     bool has_adoptable = false;
+@@ -225,13 +225,9 @@ static int process_config(VolumeManager *vm, bool* has_adoptable) {
+     *has_adoptable = false;
      for (int i = 0; i < fstab->num_entries; i++) {
          if (fs_mgr_is_voldmanaged(&fstab->recs[i])) {
 -            if (fs_mgr_is_nonremovable(&fstab->recs[i])) {
@@ -306,7 +306,7 @@ index 9cbcf88..fc0b928 100644
              int flags = 0;
  
              if (fs_mgr_is_encryptable(&fstab->recs[i])) {
-@@ -236,9 +232,12 @@ static int process_config(VolumeManager *vm) {
+@@ -242,9 +238,12 @@ static int process_config(VolumeManager *vm, bool* has_adoptable) {
                      || property_get_bool("vold.debug.default_primary", false)) {
                  flags |= android::vold::Disk::Flags::kDefaultPrimary;
              }
@@ -319,7 +319,7 @@ index 9cbcf88..fc0b928 100644
 +                    new VolumeManager::DiskSource(sysPattern, nickname, partnum, flags)));
          }
      }
-     property_set("vold.has_adoptable", has_adoptable ? "1" : "0");
+     return 0;
 -- 
-2.7.4
+2.11.0
 

@@ -1,4 +1,4 @@
-From 25fdb30325a99d22b4bfc9b5633b466838879cd4 Mon Sep 17 00:00:00 2001
+From 32e4d65be8b14ca71c4ede2fb23e80840dfd368f Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 27 Aug 2016 09:26:34 -0700
 Subject: [PATCH 1/3] sepolicy: Allow some execmods
@@ -9,7 +9,7 @@ Our blobs are so ancient, they need this...
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/domain.te b/domain.te
-index 45569de..2b89534 100644
+index 45569de4..2b895349 100644
 --- a/domain.te
 +++ b/domain.te
 @@ -298,6 +298,7 @@ neverallow {
@@ -48,10 +48,10 @@ index 45569de..2b89534 100644
  neverallow { domain -init } proc:{ file dir } mounton;
  
 -- 
-2.7.4
+2.11.0
 
 
-From 950b3cdd18d9bc87c25dc3a927f6a91999f6e683 Mon Sep 17 00:00:00 2001
+From 7de66e71caad78eebefec77e937ba077a409a6a4 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Mon, 26 Dec 2016 13:48:20 -0800
 Subject: [PATCH 2/3] sepolicy: Allow gpsd access to /dev/__properties__
@@ -62,7 +62,7 @@ Since we're already allowing execmod's what another change :/
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/domain.te b/domain.te
-index 2b89534..65105bf 100644
+index 2b895349..65105bf1 100644
 --- a/domain.te
 +++ b/domain.te
 @@ -308,7 +308,7 @@ neverallow { domain -init } property_data_file:dir no_w_dir_perms;
@@ -75,10 +75,10 @@ index 2b89534..65105bf 100644
  # Only recovery should be doing writes to /system
  neverallow { domain -recovery } { system_file exec_type }:dir_file_class_set
 -- 
-2.7.4
+2.11.0
 
 
-From 418c4cb33260bf7705ef7796375cf983087d0b97 Mon Sep 17 00:00:00 2001
+From 0851f1e40bce618749af0c3f31264c71bf306e58 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 12 Feb 2017 19:38:29 -0800
 Subject: [PATCH 3/3] Allow audio server access to network sockets
@@ -89,7 +89,7 @@ Yep, our audio actually does this...
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/audioserver.te b/audioserver.te
-index da12649..20d08a7 100644
+index da12649e..20d08a75 100644
 --- a/audioserver.te
 +++ b/audioserver.te
 @@ -52,4 +52,4 @@ unix_socket_connect(audioserver, bluetooth, bluetooth)
@@ -99,5 +99,5 @@ index da12649..20d08a7 100644
 -neverallow audioserver domain:{ tcp_socket udp_socket rawip_socket } *;
 +neverallow audioserver domain:{ udp_socket rawip_socket } *;
 -- 
-2.7.4
+2.11.0
 

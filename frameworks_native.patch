@@ -1,0 +1,30 @@
+From 4be0459e7ab33078b0173c5cc860f9f868335dce Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 6 Aug 2018 13:06:27 -0700
+Subject: [PATCH] frameworks/native: Add BOARD_EGL_WORKAROUND_BUG_10194508 flag
+
+Previously this was only enabled for OMAP, but some other devices
+need it as well
+
+Change-Id: I71ec67366cdea9c8c8413ac894da0848d9146df1
+---
+ opengl/libs/Android.mk | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/opengl/libs/Android.mk b/opengl/libs/Android.mk
+index 528b983dd..a02e96e40 100644
+--- a/opengl/libs/Android.mk
++++ b/opengl/libs/Android.mk
+@@ -51,6 +51,9 @@ endif
+ ifeq ($(TARGET_BOARD_PLATFORM), omap4)
+   LOCAL_CFLAGS += -DWORKAROUND_BUG_10194508=1
+ endif
++ifeq ($(BOARD_EGL_WORKAROUND_BUG_10194508), true)
++  LOCAL_CFLAGS += -DWORKAROUND_BUG_10194508=1
++endif
+ ifneq ($(MAX_EGL_CACHE_ENTRY_SIZE),)
+   LOCAL_CFLAGS += -DMAX_EGL_CACHE_ENTRY_SIZE=$(MAX_EGL_CACHE_ENTRY_SIZE)
+ endif
+-- 
+2.11.0
+

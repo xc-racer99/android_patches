@@ -1,0 +1,76 @@
+From bddb496cb70b1a628ec773687f467070797300e9 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 6 Aug 2018 13:10:47 -0700
+Subject: [PATCH] unlegacy: Add ua_telusgalaxys4gmtd
+
+SGH-T959P - first gen Galaxy S device
+
+Change-Id: Id7a9622fca50b39847eef35ba349dfa5968901a2
+---
+ AndroidProducts.mk               |  1 +
+ products/ua_telusgalaxys4gmtd.mk | 32 ++++++++++++++++++++++++++++++++
+ vendorsetup.sh                   |  1 +
+ 3 files changed, 34 insertions(+)
+ create mode 100644 products/ua_telusgalaxys4gmtd.mk
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index a0c060b..b15a7f0 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -16,4 +16,5 @@ PRODUCT_MAKEFILES := \
+     $(LOCAL_DIR)/products/ua_espresso.mk \
+     $(LOCAL_DIR)/products/ua_espresso3g.mk \
+     $(LOCAL_DIR)/products/ua_picasso2.mk \
++    $(LOCAL_DIR)/products/ua_telusgalaxys4gmtd.mk \
+     $(LOCAL_DIR)/products/ua_tuna.mk
+diff --git a/products/ua_telusgalaxys4gmtd.mk b/products/ua_telusgalaxys4gmtd.mk
+new file mode 100644
+index 0000000..320e049
+--- /dev/null
++++ b/products/ua_telusgalaxys4gmtd.mk
+@@ -0,0 +1,32 @@
++# Copyright (C) 2016 Unlegacy Android
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++# Inherit Unlegacy Android common configuration
++$(call inherit-product, vendor/unlegacy/configs/common.mk)
++
++# Inherit AOSP device configuration
++$(call inherit-product, device/samsung/telusgalaxys4gmtd/full_telusgalaxys4gmtd.mk)
++
++PRODUCT_DEVICE := telusgalaxys4gmtd
++PRODUCT_NAME := ua_telusgalaxys4gmtd
++PRODUCT_BRAND := samsung
++PRODUCT_MANUFACTURER := samsung
++PRODUCT_MODEL := SGH-T959P
++
++# Device build info and fingerprint
++PRODUCT_BUILD_PROP_OVERRIDES += \
++    PRODUCT_NAME=SGH-T959P \
++    TARGET_DEVICE=SGH-T959P \
++    BUILD_FINGERPRINT="samsung/SGH-T959P/SGH-T959P:2.3.4/GINGERBREAD/PTLKH2:user/release-keys" \
++    PRIVATE_BUILD_DESC="SGH-T959P-user 2.3.4 GINGERBREAD PTLKH2 release-keys"
+diff --git a/vendorsetup.sh b/vendorsetup.sh
+index 8d81f3b..e78e835 100644
+--- a/vendorsetup.sh
++++ b/vendorsetup.sh
+@@ -7,4 +7,5 @@
+ add_lunch_combo ua_espresso-userdebug
+ add_lunch_combo ua_espresso3g-userdebug
+ add_lunch_combo ua_picasso2-userdebug
++add_lunch_combo ua_telusgalaxys4gmtd-userdebug
+ add_lunch_combo ua_tuna-userdebug
+-- 
+2.11.0
+

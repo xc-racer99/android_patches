@@ -1,7 +1,7 @@
 From 195cb4b60fa10d6fa419106be03e0d50450b989e Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 15 Apr 2018 12:58:49 -0700
-Subject: [PATCH 1/6] Add crc ccitt calculation
+Subject: [PATCH 1/7] Add crc ccitt calculation
 
 Used in M5730 serial communication (XMODEM)
 
@@ -315,7 +315,7 @@ index 0000000..7b3ddad
 From ba6fd0d5b574548c4d408fedc3a74ff5436932ec Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:55:20 -0700
-Subject: [PATCH 2/6] Add a bunch of RFS commands
+Subject: [PATCH 2/7] Add a bunch of RFS commands
 
 Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W)
 ---
@@ -598,7 +598,7 @@ index 33860ce..4e145e9 100644
 From 473e5a6ce95d082c758d9a1490954afe7f9ec2d5 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:58:24 -0700
-Subject: [PATCH 3/6] Add support for SGH-T959P/SGH-T959V/SGH-T959W
+Subject: [PATCH 3/7] Add support for SGH-T959P/SGH-T959V/SGH-T959W
 
 They are a part of the first-gen Galaxy S series and use an STE M5730.  They communicate in a very similar manner to aries
 ---
@@ -2201,7 +2201,7 @@ index a7a6098..f4ce84f 100644
 From d254931ca6b30032de807d29515f78069baaee4d Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Mon, 23 Apr 2018 17:07:03 -0700
-Subject: [PATCH 4/6] Fix struct ipc_net_serving_network_data definition
+Subject: [PATCH 4/7] Fix struct ipc_net_serving_network_data definition
 
 On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
 ---
@@ -2228,7 +2228,7 @@ index 390541e..6d67e38 100644
 From 711c9f94a2a91f2dc850cff977f4f3956136a9de Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 24 Apr 2018 14:19:30 -0700
-Subject: [PATCH 5/6] Add more call defines
+Subject: [PATCH 5/7] Add more call defines
 
 We need to handle them, but adding them here for information purposes
 ---
@@ -2274,7 +2274,7 @@ index 4e145e9..8c33e2e 100644
 From 2088402eeb45fa7f9fc856dc9b9e3f74e8718eae Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 26 Apr 2018 11:42:20 -0700
-Subject: [PATCH 6/6] Add a default call type
+Subject: [PATCH 6/7] Add a default call type
 
 Used instead of voice with some devices
 ---
@@ -2293,6 +2293,32 @@ index cc0988a..4c811c5 100644
  #define IPC_CALL_TYPE_VOICE                                     0x01
  #define IPC_CALL_TYPE_DATA                                      0x03
  
+-- 
+2.11.0
+
+
+From 5f142bbba2f50980d8766cc55993ef21c5a8d8e2 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Fri, 24 Aug 2018 17:16:02 -0700
+Subject: [PATCH 7/7] Fix includes for 4.4
+
+I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
+---
+ Android.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.mk b/Android.mk
+index 35d4db9..18b7720 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -86,6 +86,7 @@ LOCAL_SRC_FILES := \
+ 	samsung-ipc/gen.c
+ 
+ LOCAL_C_INCLUDES := \
++	external/openssl/include \
+ 	$(LOCAL_PATH)/include \
+ 	$(LOCAL_PATH)/samsung-ipc \
+ 	$(LOCAL_PATH)/samsung-ipc/devices/aries/ \
 -- 
 2.11.0
 

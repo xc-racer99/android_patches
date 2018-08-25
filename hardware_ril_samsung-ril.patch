@@ -1,0 +1,1182 @@
+From 1d3094dbd5b416a338b9e3773891355ca2e0e060 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 19 Apr 2018 20:14:13 -0700
+Subject: [PATCH 1/9] Add support for more RFS commands
+
+Used in galaxys4g devices
+---
+ rfs.c         | 549 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ samsung-ril.c |  44 +++++
+ samsung-ril.h |  11 ++
+ 3 files changed, 604 insertions(+)
+
+diff --git a/rfs.c b/rfs.c
+index 74d5325..b690718 100644
+--- a/rfs.c
++++ b/rfs.c
+@@ -17,7 +17,9 @@
+  * along with Samsung-RIL.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include <dirent.h>
+ #include <stdlib.h>
++#include <sys/stat.h>
+ 
+ #define LOG_TAG "RIL-RFS"
+ #include <utils/Log.h>
+@@ -146,3 +148,550 @@ int ipc_rfs_nv_write_item(struct ipc_message *message)
+ 
+ 	return 0;
+ }
++
++int ipc_rfs_read_file(struct ipc_message *message)
++{
++	struct ipc_rfs_read_file_request_header *header;
++	struct ipc_rfs_read_file_response_header *response_header;
++	void *buffer;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_read_file_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_read_file_request_header *) message->data;
++
++	buffer = calloc(sizeof(struct ipc_rfs_read_file_response_header) + header->length, sizeof(char));
++	if (buffer == NULL)
++		return -1;
++
++	rc = read(header->fd, (char *) buffer + sizeof(struct ipc_rfs_read_file_response_header), header->length);
++
++	response_header = (struct ipc_rfs_read_file_response_header *) buffer;
++	response_header->len = rc;
++
++	if (rc < 0)
++		response_header->err = errno;
++	else if (rc == 0)
++		response_header->err = ENOENT;
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_READ_FILE, (void *) buffer, sizeof(struct ipc_rfs_read_file_response_header) + rc);
++
++	free(buffer);
++
++	return 0;
++}
++
++int ipc_rfs_write_file(struct ipc_message *message)
++{
++	struct ipc_rfs_write_file_request_header *header;
++	struct ipc_rfs_write_file_response_data data;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_write_file_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_write_file_request_header *) message->data;
++
++	memset(&data, 0, sizeof(data));
++
++	rc = write(header->fd, header + sizeof(struct ipc_rfs_write_file_request_header), header->len);
++
++	data.written = rc;
++
++	if (rc < 0)
++		data.err = errno;
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_WRITE_FILE, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_lseek_file(struct ipc_message *message)
++{
++	struct ipc_rfs_lseek_file_request_header *header;
++	struct ipc_rfs_lseek_file_response_data data;
++	struct ril_client *client;
++	struct ipc_rfs_data *ipc_rfs_data;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_lseek_file_request_header))
++		return -1;
++
++	client = ril_client_find_id(RIL_CLIENT_IPC_RFS);
++	if (client == NULL || client->data == NULL)
++		return 0;
++
++	ipc_rfs_data = (struct ipc_rfs_data *) client->data;
++	if (ipc_rfs_data->ipc_client == NULL)
++		return 0;
++
++	header = (struct ipc_rfs_lseek_file_request_header *) message->data;
++
++	memset(&data, 0, sizeof(data));
++
++	// Seek
++	rc = lseek(header->fd, header->offset, header->whence);
++
++	// Set results
++	data.ret = rc;
++
++	if (rc < 0)
++		data.err = errno;
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_LSEEK_FILE, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_close_file(struct ipc_message *message)
++{
++	struct ipc_rfs_close_file_request_header *header;
++	struct ipc_rfs_close_file_response_data data;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_close_file_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_close_file_request_header *) message->data;
++
++	memset(&data, 0, sizeof(data));
++
++	rc = close(header->fd);
++
++	data.ret = rc;
++	if (rc < 0)
++		data.err = errno;
++
++	rc = ipc_rfs_send(message->aseq, message->command, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_get_file_info(struct ipc_message *message)
++{
++	struct ipc_rfs_get_file_info_request_header *header;
++	struct ipc_rfs_get_file_info_response_data data;
++	struct ril_client *client;
++	struct ipc_rfs_data *ipc_rfs_data;
++	struct stat buf;
++	struct tm result;
++	char *rel_path;
++	char *path;
++	char *efs_root;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_get_file_info_request_header))
++		return -1;
++
++	client = ril_client_find_id(RIL_CLIENT_IPC_RFS);
++	if (client == NULL || client->data == NULL)
++		return 0;
++
++	ipc_rfs_data = (struct ipc_rfs_data *) client->data;
++	if (ipc_rfs_data->ipc_client == NULL)
++		return 0;
++
++	header = (struct ipc_rfs_get_file_info_request_header *) message->data;
++
++	rel_path = (char *) message->data + sizeof(struct ipc_rfs_get_file_info_request_header);
++
++	if (rel_path == NULL) {
++		RIL_LOGE("rel_path is null");
++		return -1;
++	}
++
++	efs_root = ipc_client_efs_root(ipc_rfs_data->ipc_client);
++	if (efs_root == NULL) {
++		RIL_LOGE("Failed to read efs_root");
++		return -1;
++	}
++
++	// Combine efs_root and rel_path
++	path = malloc(strlen(efs_root) + header->path_len + 1);
++	if (path == NULL)
++		return -1;
++
++	strcpy(path, efs_root);
++	strncat(path, rel_path, header->path_len);
++
++	RIL_LOGE("Opening path %s", path);
++
++	memset(&data, 0, sizeof(data));
++
++	// Stat file
++	rc = stat(path, &buf);
++	if (rc < 0) {
++		data.ret = rc;
++		data.err = errno;
++	} else {
++		if (S_ISDIR(buf.st_mode)) {
++			data.type = 0x1;
++		} else if (S_ISREG(buf.st_mode)) {
++			data.type = 0x2;
++		} else {
++			RIL_LOGE("Unknown file type, setting to 0");
++			data.type = 0x0;
++		}
++		data.size = buf.st_size;
++
++		// Store creation times
++		localtime_r((time_t *) &buf.st_ctime, &result);
++		data.c_year = (unsigned char) (result.tm_year - 100);
++		data.c_month = (unsigned char) (result.tm_mon + 1);
++		data.c_day = (unsigned char) result.tm_mday;
++		data.c_hour = (unsigned char) result.tm_hour;
++		data.c_min = (unsigned char) result.tm_min;
++		data.c_sec = (unsigned char) result.tm_sec;
++
++		// Store modification times
++		localtime_r((time_t *) &buf.st_mtime, &result);
++		data.m_year = (unsigned char) (result.tm_year - 100);
++		data.m_month = (unsigned char) (result.tm_mon + 1);
++		data.m_day = (unsigned char) result.tm_mday;
++		data.m_hour = (unsigned char) result.tm_hour;
++		data.m_min = (unsigned char) result.tm_min;
++		data.m_sec = (unsigned char) result.tm_sec;
++	}
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_GET_FILE_INFO, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_make_dir(struct ipc_message *message)
++{
++	struct ipc_rfs_make_dir_request_header *header;
++	struct ipc_rfs_make_dir_response_data data;
++	struct ril_client *client;
++	struct ipc_rfs_data *ipc_rfs_data;
++	struct stat buf;
++	char *rel_path;
++	char *path;
++	char *efs_root;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_make_dir_request_header))
++		return -1;
++
++	client = ril_client_find_id(RIL_CLIENT_IPC_RFS);
++	if (client == NULL || client->data == NULL)
++		return 0;
++
++	ipc_rfs_data = (struct ipc_rfs_data *) client->data;
++	if (ipc_rfs_data->ipc_client == NULL)
++		return 0;
++
++	header = (struct ipc_rfs_make_dir_request_header *) message->data;
++
++	rel_path = (char *) message->data + sizeof(struct ipc_rfs_make_dir_request_header);
++
++	if (rel_path == NULL) {
++		RIL_LOGE("rel_path is null");
++		return -1;
++	}
++
++	efs_root = ipc_client_efs_root(ipc_rfs_data->ipc_client);
++	if (efs_root == NULL) {
++		RIL_LOGE("Failed to read efs_root");
++		return -1;
++	}
++
++	// Combine efs_root and rel_path
++	path = malloc(strlen(efs_root) + header->path_len + 1);
++	if (path == NULL)
++		return -1;
++
++	strcpy(path, efs_root);
++	strncat(path, rel_path, header->path_len);
++
++	RIL_LOGE("Opening path %s", path);
++
++	memset(&data, 0, sizeof(data));
++
++	// Check if directory exists, attempt to create it otherwise
++	rc = stat(path, &buf);
++	if (rc < 0 && errno == ENOENT) {
++		rc = mkdir(path, 0660);
++		if (rc < 0) {
++			data.ret = rc;
++			data.err = errno;
++		}
++	} else if (rc < 0) {
++		data.ret = rc;
++		data.err = errno;
++	}
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_MAKE_DIR, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_open_dir(struct ipc_message *message)
++{
++	struct ipc_rfs_open_dir_request_header *header;
++	struct ipc_rfs_open_dir_response_data data;
++	struct ril_client *client;
++	struct ipc_rfs_data *ipc_rfs_data;
++	char *rel_path;
++	char *path;
++	char *efs_root;
++	DIR *dirp;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_open_dir_request_header))
++		return -1;
++
++	client = ril_client_find_id(RIL_CLIENT_IPC_RFS);
++	if (client == NULL || client->data == NULL)
++		return 0;
++
++	ipc_rfs_data = (struct ipc_rfs_data *) client->data;
++	if (ipc_rfs_data->ipc_client == NULL)
++		return 0;
++
++	header = (struct ipc_rfs_open_dir_request_header *) message->data;
++
++	rel_path = (char *) message->data + sizeof(struct ipc_rfs_open_dir_request_header);
++
++	if (rel_path == NULL) {
++		RIL_LOGE("rel_path is null");
++		return -1;
++	}
++
++	efs_root = ipc_client_efs_root(ipc_rfs_data->ipc_client);
++	if (efs_root == NULL) {
++		RIL_LOGE("Failed to read efs_root");
++		return -1;
++	}
++
++	// Combine efs_root and rel_path
++	path = malloc(strlen(efs_root) + header->path_len + 1);
++	if (path == NULL)
++		return -1;
++
++	strcpy(path, efs_root);
++	strncat(path, rel_path, header->path_len);
++
++	RIL_LOGE("Opening path %s", path);
++
++	memset(&data, 0, sizeof(data));
++
++	// Attempt to open directory, don't need to close it as client will
++	dirp = opendir(path);
++	if (dirp) {
++		data.addr = (unsigned int) dirp;
++	} else {
++		data.addr = -1;
++		data.err = errno;
++	}
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_OPEN_DIR, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_read_dir(struct ipc_message *message)
++{
++	struct ipc_rfs_read_dir_request_header *header;
++	struct ipc_rfs_read_dir_response_header *response_header;
++	struct dirent *dirent;
++	DIR *dirp;
++	void *buffer;
++	size_t len;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_read_dir_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_read_dir_request_header *) message->data;
++
++	dirp = (DIR *) header->addr;
++
++	dirent = readdir(dirp);
++	if (dirent == NULL) {
++		len = sizeof(struct ipc_rfs_read_dir_response_header);
++		buffer = calloc(1, len);
++		if (!buffer)
++			return -1;
++		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
++		response_header->ret = -1;
++		response_header->err = errno;
++	} else {
++		len = sizeof(struct ipc_rfs_read_dir_response_header) + strlen(dirent->d_name);
++		buffer = calloc(1, len);
++		if (!buffer)
++			return -1;
++		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
++		response_header->len = strlen(dirent->d_name);
++		strcpy((char *) buffer + sizeof(struct ipc_rfs_read_dir_response_header), dirent->d_name);
++	}
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_READ_DIR, buffer, len);
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_close_dir(struct ipc_message *message)
++{
++	struct ipc_rfs_close_dir_request_header *header;
++	struct ipc_rfs_close_dir_response_data data;
++	DIR *dirp;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_close_dir_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_close_dir_request_header *) message->data;
++
++	memset(&data, 0, sizeof(data));
++
++	rc = closedir((DIR *) header->addr);
++
++	data.ret = rc;
++	if (rc < 0)
++		data.err = errno;
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_CLOSE_DIR, &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_open_file(struct ipc_message *message)
++{
++	struct ipc_rfs_open_file_request_header *header;
++	struct ipc_rfs_open_file_response_data data;
++	struct ril_client *client;
++	struct ipc_rfs_data *ipc_rfs_data;
++	char *rel_path;
++	char *path;
++	char *efs_root;
++	int fd;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_open_file_request_header))
++		return -1;
++
++	client = ril_client_find_id(RIL_CLIENT_IPC_RFS);
++	if (client == NULL || client->data == NULL)
++		return 0;
++
++	ipc_rfs_data = (struct ipc_rfs_data *) client->data;
++	if (ipc_rfs_data->ipc_client == NULL)
++		return 0;
++
++	header = (struct ipc_rfs_open_file_request_header *) message->data;
++
++	rel_path = (char *) message->data + sizeof(struct ipc_rfs_open_file_request_header);
++
++	if (rel_path == NULL) {
++		RIL_LOGE("rel_path is null");
++		return -1;
++	}
++
++	efs_root = ipc_client_efs_root(ipc_rfs_data->ipc_client);
++	if (efs_root == NULL) {
++		RIL_LOGE("Failed to read efs_root");
++		return -1;
++	}
++
++	// Combine efs_root and rel_path
++	path = malloc(strlen(efs_root) + header->path_len + 1);
++	if (path == NULL)
++		return -1;
++
++	strcpy(path, efs_root);
++	strncat(path, rel_path, header->path_len);
++
++	RIL_LOGE("Opening path %s", path);
++
++	memset(&data, 0, sizeof(data));
++
++	// Attempt to open file, don't need to close fd as client will
++	// TODO - Make parent folders if O_CREAT is set
++	fd = open(path, header->flags | O_DSYNC, 0644);
++	data.fd = fd;
++
++	if (fd < 0)
++		data.err = errno;
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_OPEN_FILE, (void *) &data, sizeof(data));
++
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_get_handle_info(struct ipc_message *message)
++{
++	struct ipc_rfs_get_handle_info_request_header *header;
++	struct ipc_rfs_get_handle_info_response_data data;
++	struct stat buf;
++	struct tm result;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_get_handle_info_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_get_handle_info_request_header *) message->data;
++
++	memset(&data, 0, sizeof(data));
++
++	// Stat file
++	rc = fstat(header->fd, &buf);
++	if (rc < 0) {
++		data.ret = rc;
++		data.err = errno;
++	} else {
++		if (S_ISDIR(buf.st_mode)) {
++			data.type = 0x1;
++		} else if (S_ISREG(buf.st_mode)) {
++			data.type = 0x2;
++		} else {
++			RIL_LOGE("Unknown file type, setting to 0");
++			data.type = 0x0;
++		}
++		data.size = buf.st_size;
++
++		// Store creation times
++		localtime_r((time_t *) &buf.st_ctime, &result);
++		data.c_year = (unsigned char) (result.tm_year  - 100);
++		data.c_month = (unsigned char) (result.tm_mon + 1);
++		data.c_day = (unsigned char) result.tm_mday;
++		data.c_hour = (unsigned char) result.tm_hour;
++		data.c_min = (unsigned char) result.tm_min;
++		data.c_sec = (unsigned char) result.tm_sec;
++
++		// Store modification times
++		localtime_r((time_t *) &buf.st_mtime, &result);
++		data.m_year = (unsigned char) (result.tm_year  - 100);
++		data.m_month = (unsigned char) (result.tm_mon + 1);
++		data.m_day = (unsigned char) result.tm_mday;
++		data.m_hour = (unsigned char) result.tm_hour;
++		data.m_min = (unsigned char) result.tm_min;
++		data.m_sec = (unsigned char) result.tm_sec;
++	}
++
++	rc = ipc_rfs_send(message->aseq, IPC_RFS_GET_HANDLE_INFO, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
+diff --git a/samsung-ril.c b/samsung-ril.c
+index 8174e72..e5a8352 100644
+--- a/samsung-ril.c
++++ b/samsung-ril.c
+@@ -215,6 +215,50 @@ struct ipc_dispatch_handler ipc_rfs_dispatch_handlers[] = {
+ 		.command = IPC_RFS_NV_WRITE_ITEM,
+ 		.handler = ipc_rfs_nv_write_item,
+ 	},
++	{
++		.command = IPC_RFS_READ_FILE,
++		.handler = ipc_rfs_read_file,
++	},
++	{
++		.command = IPC_RFS_WRITE_FILE,
++		.handler = ipc_rfs_write_file,
++	},
++	{
++		.command = IPC_RFS_LSEEK_FILE,
++		.handler = ipc_rfs_lseek_file,
++	},
++	{
++		.command = IPC_RFS_CLOSE_FILE,
++		.handler = ipc_rfs_close_file,
++	},
++	{
++		.command = IPC_RFS_GET_FILE_INFO,
++		.handler = ipc_rfs_get_file_info,
++	},
++	{
++		.command = IPC_RFS_MAKE_DIR,
++		.handler = ipc_rfs_make_dir,
++	},
++	{
++		.command = IPC_RFS_OPEN_DIR,
++		.handler = ipc_rfs_open_dir,
++	},
++	{
++		.command = IPC_RFS_READ_DIR,
++		.handler = ipc_rfs_read_dir,
++	},
++	{
++		.command = IPC_RFS_CLOSE_DIR,
++		.handler = ipc_rfs_close_dir,
++	},
++	{
++		.command = IPC_RFS_OPEN_FILE,
++		.handler = ipc_rfs_open_file,
++	},
++	{
++		.command = IPC_RFS_GET_HANDLE_INFO,
++		.handler = ipc_rfs_get_handle_info,
++	},
+ };
+ 
+ unsigned int ipc_rfs_dispatch_handlers_count = sizeof(ipc_rfs_dispatch_handlers) /
+diff --git a/samsung-ril.h b/samsung-ril.h
+index 7c60449..7a1efd3 100644
+--- a/samsung-ril.h
++++ b/samsung-ril.h
+@@ -424,6 +424,17 @@ int ril_request_last_data_call_fail_cause(void *data, size_t size,
+ 
+ int ipc_rfs_nv_read_item(struct ipc_message *message);
+ int ipc_rfs_nv_write_item(struct ipc_message *message);
++int ipc_rfs_read_file(struct ipc_message *message);
++int ipc_rfs_write_file(struct ipc_message *message);
++int ipc_rfs_lseek_file(struct ipc_message *message);
++int ipc_rfs_close_file(struct ipc_message *message);
++int ipc_rfs_get_file_info(struct ipc_message *message);
++int ipc_rfs_make_dir(struct ipc_message *message);
++int ipc_rfs_open_dir(struct ipc_message *message);
++int ipc_rfs_read_dir(struct ipc_message *message);
++int ipc_rfs_close_dir(struct ipc_message *message);
++int ipc_rfs_open_file(struct ipc_message *message);
++int ipc_rfs_get_handle_info(struct ipc_message *message);
+ 
+ /*
+  * GEN
+-- 
+2.11.0
+
+
+From f2609064fb239a6c373940cb787535ccbe92280c Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 23 Apr 2018 19:04:22 -0700
+Subject: [PATCH 2/9] Check for pending requests when aseq is invalid for power
+
+Some devices don't properly retain aseq for power commands, so we need to look this up manually
+---
+ power.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/power.c b/power.c
+index 6de7eb0..3198c3e 100644
+--- a/power.c
++++ b/power.c
+@@ -43,12 +43,22 @@ int ipc_pwr_phone_reset(struct ipc_message *message)
+ int ipc_pwr_phone_state(struct ipc_message *message)
+ {
+ 	struct ipc_pwr_phone_state_response_data *data;
++	struct ril_request *request;
++	RIL_Token token;
+ 
+ 	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_pwr_phone_state_response_data))
+ 		return -1;
+ 
+-	if (!ipc_seq_valid(message->aseq))
+-		return 0;
++	if (!ipc_seq_valid(message->aseq)) {
++		// Some devices don't properly set the aseq here
++		request = ril_request_find_request_status(RIL_REQUEST_RADIO_POWER, RIL_REQUEST_HANDLED);
++		if (request == NULL || request->token == NULL)
++			return 0;
++		else
++			token = request->token;
++	} else {
++		token = ipc_fmt_request_token(message->aseq);
++	}
+ 
+ 	data = (struct ipc_pwr_phone_state_response_data *) message->data;
+ 
+@@ -56,13 +66,13 @@ int ipc_pwr_phone_state(struct ipc_message *message)
+ 		case IPC_PWR_PHONE_STATE_RESPONSE_LPM:
+ 			RIL_LOGD("Power state is low power mode");
+ 
+-			ril_request_complete(ipc_fmt_request_token(message->aseq), RIL_E_SUCCESS, NULL, 0);
++			ril_request_complete(token, RIL_E_SUCCESS, NULL, 0);
+ 			ril_radio_state_update(RADIO_STATE_OFF);
+ 			break;
+ 		case IPC_PWR_PHONE_STATE_RESPONSE_NORMAL:
+ 			RIL_LOGD("Power state is normal");
+ 
+-			ril_request_complete(ipc_fmt_request_token(message->aseq), RIL_E_SUCCESS, NULL, 0);
++			ril_request_complete(token, RIL_E_SUCCESS, NULL, 0);
+ 			ril_radio_state_update(RADIO_STATE_SIM_NOT_READY);
+ 			break;
+ 	}
+-- 
+2.11.0
+
+
+From d7f18bb8880609bcbffc9c7e4e6015ba157af88d Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 23 Apr 2018 19:33:15 -0700
+Subject: [PATCH 3/9] Check for pending requests when aseq is invalid for
+ available networks
+
+Some devices fail to retain aseq when returning available networks
+---
+ network.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/network.c b/network.c
+index 9295ea7..4824631 100644
+--- a/network.c
++++ b/network.c
+@@ -732,6 +732,8 @@ int ril_request_operator(void *data, size_t size, RIL_Token token)
+ int ipc_net_plmn_list(struct ipc_message *message)
+ {
+ 	struct ipc_net_plmn_list_entry *entry;
++	struct ril_request *request;
++	RIL_Token token;
+ 	char **networks = NULL;
+ 	size_t networks_size;
+ 	unsigned int networks_count = 0;
+@@ -748,12 +750,20 @@ int ipc_net_plmn_list(struct ipc_message *message)
+ 	if (rc < 0)
+ 		return 0;
+ 
+-	if (message->type != IPC_TYPE_RESP || !ipc_seq_valid(message->aseq))
+-		return 0;
++	if (message->type != IPC_TYPE_RESP || !ipc_seq_valid(message->aseq)) {
++		// Some devices don't properly set the aseq here
++		request = ril_request_find_request_status(RIL_REQUEST_QUERY_AVAILABLE_NETWORKS, RIL_REQUEST_HANDLED);
++		if (request == NULL || request->token == NULL)
++			return 0;
++		else
++			token = request->token;
++	} else {
++		token = ipc_fmt_request_token(message->aseq);
++	}
+ 
+ 	count = ipc_net_plmn_list_count_extract(message->data, message->size);
+ 	if (count == 0) {
+-		ril_request_complete(ipc_fmt_request_token(message->aseq), RIL_E_SUCCESS, NULL, 0);
++		ril_request_complete(token, RIL_E_SUCCESS, NULL, 0);
+ 		return 0;
+ 	}
+ 
+@@ -793,12 +803,12 @@ int ipc_net_plmn_list(struct ipc_message *message)
+ 
+ 	networks_size = networks_count * 4 * sizeof(char *);
+ 
+-	ril_request_complete(ipc_fmt_request_token(message->aseq), RIL_E_SUCCESS, (void *) networks, networks_size);
++	ril_request_complete(token, RIL_E_SUCCESS, (void *) networks, networks_size);
+ 
+ 	goto complete;
+ 
+ error:
+-	ril_request_complete(ipc_fmt_request_token(message->aseq), RIL_E_GENERIC_FAILURE, NULL, 0);
++	ril_request_complete(token, RIL_E_GENERIC_FAILURE, NULL, 0);
+ 
+ complete:
+ 	if (networks != NULL && networks_size > 0) {
+-- 
+2.11.0
+
+
+From 9d74c2008f76e850ebb606a99365e0c76cef127a Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Tue, 24 Apr 2018 12:56:29 -0700
+Subject: [PATCH 4/9] Handle generic responses when necessary
+
+Some IPC FMT responses come through as generic, but because they are the actually responses, they can block other requests from being sent.  This is especially an issue if the request that errored out is SIM_IO/RSIM_ACCESS
+---
+ gen.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/gen.c b/gen.c
+index 8bfdb13..3b1525f 100644
+--- a/gen.c
++++ b/gen.c
+@@ -226,6 +226,7 @@ int ipc_gen_phone_res(struct ipc_message *message)
+ 	struct ipc_gen_phone_res_expect *expect;
+ 	struct ipc_gen_phone_res_data *data;
+ 	struct ril_client *client;
++	RIL_Token token;
+ 	RIL_Errno error;
+ 	int rc;
+ 
+@@ -240,8 +241,20 @@ int ipc_gen_phone_res(struct ipc_message *message)
+ 
+ 	expect = ipc_gen_phone_res_expect_find_aseq(client, message->aseq);
+ 	if (expect == NULL) {
+-		RIL_LOGD("Ignoring generic response for command %s", ipc_command_string(IPC_COMMAND(data->group, data->index)));
+-		return 0;
++		if (message->type == IPC_TYPE_RESP) {
++			token = ipc_fmt_request_token(message->aseq);
++			if (token != NULL) {
++				RIL_LOGD("Received generic response for command %s, sending GENERIC_FAILURE", ipc_command_string(IPC_COMMAND(data->group, data->index)));
++				ril_request_complete(token, RIL_E_GENERIC_FAILURE, NULL, 0);
++				return 0;
++			} else {
++				RIL_LOGE("Expected to find request for generic response to command %s but unable to, igorning", ipc_command_string(IPC_COMMAND(data->group, data->index)));
++				return 0;
++			}
++		} else {
++			RIL_LOGD("Ignoring generic response for command %s", ipc_command_string(IPC_COMMAND(data->group, data->index)));
++			return 0;
++		}
+ 	}
+ 
+ 	if (IPC_COMMAND(data->group, data->index) != expect->command) {
+-- 
+2.11.0
+
+
+From b9eb25947db0129158dfe8342534355e48a8ee73 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 23 Apr 2018 14:01:26 -0700
+Subject: [PATCH 5/9] Use proper struct size in network
+
+Previously what was used here was the same size, but other devices use a smaller value
+---
+ network.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/network.c b/network.c
+index 4824631..19fd7f5 100644
+--- a/network.c
++++ b/network.c
+@@ -645,7 +645,7 @@ int ipc_net_serving_network(struct ipc_message *message)
+ 	unsigned int i;
+ 	int rc;
+ 
+-	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_net_regist_response_data))
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_net_serving_network_data))
+ 		return -1;
+ 
+ 	rc = ril_radio_state_check(RADIO_STATE_SIM_NOT_READY);
+-- 
+2.11.0
+
+
+From ab7f46f5300db4962841597d2111d27a8dc0e352 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 26 Apr 2018 11:43:28 -0700
+Subject: [PATCH 6/9] Voice calls can also be the default call type
+
+Some devices don't set call type, so assume voice
+---
+ call.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/call.c b/call.c
+index 6a3ffb9..9a6696a 100644
+--- a/call.c
++++ b/call.c
+@@ -297,7 +297,7 @@ int ipc_call_list(struct ipc_message *message)
+ 		calls[index]->isMpty = entry->mpty;
+ 		calls[index]->isMT = entry->term == IPC_CALL_TERM_MT;
+ 		calls[index]->als = 0;
+-		calls[index]->isVoice = entry->type == IPC_CALL_TYPE_VOICE;
++		calls[index]->isVoice = entry->type == IPC_CALL_TYPE_VOICE || entry->type == IPC_CALL_TYPE_DEFAULT;
+ 		calls[index]->isVoicePrivacy = 0;
+ 		calls[index]->number = strdup(number);
+ 		calls[index]->numberPresentation = (entry->number_length > 0) ? 0 : 2;
+-- 
+2.11.0
+
+
+From 94ce04449803726a882a8a3113d812f4a429fd97 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 30 Apr 2018 17:26:08 -0700
+Subject: [PATCH 7/9] Check for pending requests when aseq is invalid for SMS
+
+---
+ sms.c | 32 ++++++++++++++++++++++++++------
+ 1 file changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/sms.c b/sms.c
+index 6f8a8f8..18949c0 100644
+--- a/sms.c
++++ b/sms.c
+@@ -81,13 +81,23 @@ unsigned char ril2ipc_sms_status(int status)
+ int ipc_sms_send_msg(struct ipc_message *message)
+ {
+ 	struct ipc_sms_send_msg_response_data *data;
++	struct ril_request *request;
+ 	RIL_SMS_Response response;
++	RIL_Token token;
+ 
+ 	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_sms_send_msg_response_data))
+ 		return -1;
+ 
+-	if (!ipc_seq_valid(message->aseq))
+-		return 0;
++	if (!ipc_seq_valid(message->aseq)) {
++		// Some devices don't properly set the aseq here
++		request = ril_request_find_request_status(RIL_REQUEST_SEND_SMS, RIL_REQUEST_HANDLED);
++		if (request == NULL || request->token == NULL)
++			return 0;
++		else
++			token = request->token;
++	} else {
++		token = ipc_fmt_request_token(message->aseq);
++	}
+ 
+ 	data = (struct ipc_sms_send_msg_response_data *) message->data;
+ 
+@@ -95,7 +105,7 @@ int ipc_sms_send_msg(struct ipc_message *message)
+ 	response.messageRef = data->id;
+ 	response.ackPDU = NULL;
+ 
+-	ril_request_complete(ipc_fmt_request_token(message->aseq), ipc2ril_sms_ack_error(data->ack), &response, sizeof(response));
++	ril_request_complete(token, ipc2ril_sms_ack_error(data->ack), &response, sizeof(response));
+ 
+ 	return 0;
+ }
+@@ -499,19 +509,29 @@ complete:
+ int ipc_sms_deliver_report(struct ipc_message *message)
+ {
+ 	struct ipc_sms_deliver_report_response_data *data;
++	struct ril_request *request;
++	RIL_Token token;
+ 	RIL_Errno error;
+ 
+ 	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_sms_deliver_report_response_data))
+ 		return -1;
+ 
+-	if (!ipc_seq_valid(message->aseq))
+-		return 0;
++	if (!ipc_seq_valid(message->aseq)) {
++		// Some devices don't properly set the aseq here
++		request = ril_request_find_request_status(RIL_REQUEST_SMS_ACKNOWLEDGE, RIL_REQUEST_HANDLED);
++		if (request == NULL || request->token == NULL)
++			return 0;
++		else
++			token = request->token;
++	} else {
++		token = ipc_fmt_request_token(message->aseq);
++	}
+ 
+ 	data = (struct ipc_sms_deliver_report_response_data *) message->data;
+ 
+ 	error = ipc2ril_sms_ack_error(data->ack);
+ 
+-	ril_request_complete(ipc_fmt_request_token(message->aseq), error, NULL, 0);
++	ril_request_complete(token, error, NULL, 0);
+ 
+ 	return 0;
+ }
+-- 
+2.11.0
+
+
+From 29d42d74c430805baa54abe35d0ce96e00c3d42e Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Tue, 1 May 2018 09:23:10 -0700
+Subject: [PATCH 8/9] Use valid call id when given id is 0
+
+Some devices start their indexing at 0, but Android wants it to start at 1.
+Considering that this id value is never used by the modem again, this should be safe
+---
+ call.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/call.c b/call.c
+index 9a6696a..0c7f1d6 100644
+--- a/call.c
++++ b/call.c
+@@ -293,7 +293,7 @@ int ipc_call_list(struct ipc_message *message)
+ 
+ 		calls[index] = (RIL_Call *) calloc(1, sizeof(RIL_Call));
+ 		calls[index]->state = ipc2ril_call_list_entry_state(entry->status);
+-		calls[index]->index = entry->id;
++		calls[index]->index = (entry->id == 0) ? index + 1 : entry->id;
+ 		calls[index]->isMpty = entry->mpty;
+ 		calls[index]->isMT = entry->term == IPC_CALL_TERM_MT;
+ 		calls[index]->als = 0;
+-- 
+2.11.0
+
+
+From 84235dc353fbdbf03f4cf66f8f927baa325c9a60 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sat, 5 May 2018 08:41:11 -0700
+Subject: [PATCH 9/9] rfs: Deny permission to paths containing ".."
+
+This could be very dangerous in that it allows the RIL access to files outside of efs_root
+
+Close this potential security hole.  Note that these commands are the ones found in https://redmine.replicant.us/projects/replicant/wiki/SamsungGalaxyBackdoor but they have a legitimate usage on some devices
+---
+ rfs.c | 127 ++++++++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 77 insertions(+), 50 deletions(-)
+
+diff --git a/rfs.c b/rfs.c
+index b690718..3364847 100644
+--- a/rfs.c
++++ b/rfs.c
+@@ -325,39 +325,45 @@ int ipc_rfs_get_file_info(struct ipc_message *message)
+ 
+ 	memset(&data, 0, sizeof(data));
+ 
+-	// Stat file
+-	rc = stat(path, &buf);
+-	if (rc < 0) {
+-		data.ret = rc;
+-		data.err = errno;
++	// Make sure we're not doing anything nasty and trying to access files outside efs_roof
++	if (strstr(path, "..") != NULL) {
++		RIL_LOGE("WARNING: RIL is trying to access files outside of /efs/, denying access");
++		data.ret = -1;
++		data.err = EPERM;
+ 	} else {
+-		if (S_ISDIR(buf.st_mode)) {
+-			data.type = 0x1;
+-		} else if (S_ISREG(buf.st_mode)) {
+-			data.type = 0x2;
++		rc = stat(path, &buf);
++		if (rc < 0) {
++			data.ret = rc;
++			data.err = errno;
+ 		} else {
+-			RIL_LOGE("Unknown file type, setting to 0");
+-			data.type = 0x0;
++			if (S_ISDIR(buf.st_mode)) {
++				data.type = 0x1;
++			} else if (S_ISREG(buf.st_mode)) {
++				data.type = 0x2;
++			} else {
++				RIL_LOGE("Unknown file type, setting to 0");
++				data.type = 0x0;
++			}
++			data.size = buf.st_size;
++
++			// Store creation times
++			localtime_r((time_t *) &buf.st_ctime, &result);
++			data.c_year = (unsigned char) (result.tm_year - 100);
++			data.c_month = (unsigned char) (result.tm_mon + 1);
++			data.c_day = (unsigned char) result.tm_mday;
++			data.c_hour = (unsigned char) result.tm_hour;
++			data.c_min = (unsigned char) result.tm_min;
++			data.c_sec = (unsigned char) result.tm_sec;
++
++			// Store modification times
++			localtime_r((time_t *) &buf.st_mtime, &result);
++			data.m_year = (unsigned char) (result.tm_year - 100);
++			data.m_month = (unsigned char) (result.tm_mon + 1);
++			data.m_day = (unsigned char) result.tm_mday;
++			data.m_hour = (unsigned char) result.tm_hour;
++			data.m_min = (unsigned char) result.tm_min;
++			data.m_sec = (unsigned char) result.tm_sec;
+ 		}
+-		data.size = buf.st_size;
+-
+-		// Store creation times
+-		localtime_r((time_t *) &buf.st_ctime, &result);
+-		data.c_year = (unsigned char) (result.tm_year - 100);
+-		data.c_month = (unsigned char) (result.tm_mon + 1);
+-		data.c_day = (unsigned char) result.tm_mday;
+-		data.c_hour = (unsigned char) result.tm_hour;
+-		data.c_min = (unsigned char) result.tm_min;
+-		data.c_sec = (unsigned char) result.tm_sec;
+-
+-		// Store modification times
+-		localtime_r((time_t *) &buf.st_mtime, &result);
+-		data.m_year = (unsigned char) (result.tm_year - 100);
+-		data.m_month = (unsigned char) (result.tm_mon + 1);
+-		data.m_day = (unsigned char) result.tm_mday;
+-		data.m_hour = (unsigned char) result.tm_hour;
+-		data.m_min = (unsigned char) result.tm_min;
+-		data.m_sec = (unsigned char) result.tm_sec;
+ 	}
+ 
+ 	rc = ipc_rfs_send(message->aseq, IPC_RFS_GET_FILE_INFO, (void *) &data, sizeof(data));
+@@ -417,17 +423,24 @@ int ipc_rfs_make_dir(struct ipc_message *message)
+ 
+ 	memset(&data, 0, sizeof(data));
+ 
+-	// Check if directory exists, attempt to create it otherwise
+-	rc = stat(path, &buf);
+-	if (rc < 0 && errno == ENOENT) {
+-		rc = mkdir(path, 0660);
+-		if (rc < 0) {
++	// Make sure we're not doing anything nasty and trying to access files outside efs_roof
++	if (strstr(path, "..") != NULL) {
++		RIL_LOGE("WARNING: RIL is trying to access files outside of /efs/, denying access");
++		data.ret = -1;
++		data.err = EPERM;
++	} else {
++		// Check if directory exists, attempt to create it otherwise
++		rc = stat(path, &buf);
++		if (rc < 0 && errno == ENOENT) {
++			rc = mkdir(path, 0660);
++			if (rc < 0) {
++				data.ret = rc;
++				data.err = errno;
++			}
++		} else if (rc < 0) {
+ 			data.ret = rc;
+ 			data.err = errno;
+ 		}
+-	} else if (rc < 0) {
+-		data.ret = rc;
+-		data.err = errno;
+ 	}
+ 
+ 	rc = ipc_rfs_send(message->aseq, IPC_RFS_MAKE_DIR, (void *) &data, sizeof(data));
+@@ -487,13 +500,20 @@ int ipc_rfs_open_dir(struct ipc_message *message)
+ 
+ 	memset(&data, 0, sizeof(data));
+ 
+-	// Attempt to open directory, don't need to close it as client will
+-	dirp = opendir(path);
+-	if (dirp) {
+-		data.addr = (unsigned int) dirp;
+-	} else {
++	// Make sure we're not doing anything nasty and trying to access files outside efs_roof
++	if (strstr(path, "..") != NULL) {
++		RIL_LOGE("WARNING: RIL is trying to access files outside of /efs/, denying access");
+ 		data.addr = -1;
+-		data.err = errno;
++		data.err = EPERM;
++	} else {
++		// Attempt to open directory, don't need to close it as client will
++		dirp = opendir(path);
++		if (dirp) {
++			data.addr = (unsigned int) dirp;
++		} else {
++			data.addr = -1;
++			data.err = errno;
++		}
+ 	}
+ 
+ 	rc = ipc_rfs_send(message->aseq, IPC_RFS_OPEN_DIR, (void *) &data, sizeof(data));
+@@ -623,13 +643,20 @@ int ipc_rfs_open_file(struct ipc_message *message)
+ 
+ 	memset(&data, 0, sizeof(data));
+ 
+-	// Attempt to open file, don't need to close fd as client will
+-	// TODO - Make parent folders if O_CREAT is set
+-	fd = open(path, header->flags | O_DSYNC, 0644);
+-	data.fd = fd;
++	// Make sure we're not doing anything nasty and trying to access files outside efs_roof
++	if (strstr(path, "..") != NULL) {
++		RIL_LOGE("WARNING: RIL is trying to access files outside of /efs/, denying access");
++		data.fd = -1;
++		data.err = EPERM;
++	} else {
++		// Attempt to open file, don't need to close fd as client will
++		// TODO - Make parent folders if O_CREAT is set
++		fd = open(path, header->flags | O_DSYNC, 0644);
++		data.fd = fd;
+ 
+-	if (fd < 0)
+-		data.err = errno;
++		if (fd < 0)
++			data.err = errno;
++	}
+ 
+ 	rc = ipc_rfs_send(message->aseq, IPC_RFS_OPEN_FILE, (void *) &data, sizeof(data));
+ 
+-- 
+2.11.0
+

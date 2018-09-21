@@ -1,0 +1,24 @@
+From ebb3db193b8fe66dacc7e995c6a218cea8126e68 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Fri, 21 Sep 2018 13:48:34 -0700
+Subject: [PATCH] Add ubifs to the list of fs_use filesystems that use xattr
+
+---
+ fs_use | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/fs_use b/fs_use
+index 6516046..b67d5aa 100644
+--- a/fs_use
++++ b/fs_use
+@@ -1,6 +1,7 @@
+ # Label inodes via getxattr.
+ fs_use_xattr yaffs2 u:object_r:labeledfs:s0;
+ fs_use_xattr jffs2 u:object_r:labeledfs:s0;
++fs_use_xattr ubifs u:object_r:labeledfs:s0;
+ fs_use_xattr ext2 u:object_r:labeledfs:s0;
+ fs_use_xattr ext3 u:object_r:labeledfs:s0;
+ fs_use_xattr ext4 u:object_r:labeledfs:s0;
+-- 
+2.11.0
+

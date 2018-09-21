@@ -1,0 +1,184 @@
+From 00ed60d2d7343a6b1022d32360ececf743d4e330 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 17 Sep 2018 17:36:23 -0700
+Subject: [PATCH 1/5] Treat KEY_POWER as if it were KEY_ENTER
+
+---
+ default_device.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/default_device.cpp b/default_device.cpp
+index 648eaec..8010b8c 100644
+--- a/default_device.cpp
++++ b/default_device.cpp
+@@ -60,6 +60,7 @@ class DefaultDevice : public Device {
+               case KEY_VOLUMEUP:
+                 return kHighlightUp;
+ 
++              case KEY_POWER:
+               case KEY_ENTER:
+                 return kInvokeItem;
+             }
+-- 
+2.11.0
+
+
+From 34c85346f230a3a4bd57441bec84492ee12a72e8 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 17 Sep 2018 17:36:42 -0700
+Subject: [PATCH 2/5] minui: Allow custom recovery graphics
+
+Some devices don't work with the default one
+---
+ minui/Android.mk | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/minui/Android.mk b/minui/Android.mk
+index 43e0ad3..7f59ef4 100644
+--- a/minui/Android.mk
++++ b/minui/Android.mk
+@@ -1,7 +1,12 @@
+ LOCAL_PATH := $(call my-dir)
+ include $(CLEAR_VARS)
+ 
+-LOCAL_SRC_FILES := graphics.c events.c resources.c
++LOCAL_SRC_FILES := events.c resources.c
++ifneq ($(BOARD_CUSTOM_GRAPHICS),)
++  LOCAL_SRC_FILES += $(BOARD_CUSTOM_GRAPHICS)
++else
++  LOCAL_SRC_FILES += graphics.c
++endif
+ 
+ LOCAL_C_INCLUDES +=\
+     external/libpng\
+-- 
+2.11.0
+
+
+From 092cb285d0a7769452060760ced3d9f4d27a95c1 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 17 Sep 2018 17:37:06 -0700
+Subject: [PATCH 3/5] Allow mounting ubifs as well
+
+---
+ roots.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/roots.cpp b/roots.cpp
+index 113dba1..2719e67 100644
+--- a/roots.cpp
++++ b/roots.cpp
+@@ -105,7 +105,8 @@ int ensure_path_mounted(const char* path) {
+         }
+         return mtd_mount_partition(partition, v->mount_point, v->fs_type, 0);
+     } else if (strcmp(v->fs_type, "ext4") == 0 ||
+-               strcmp(v->fs_type, "vfat") == 0) {
++               strcmp(v->fs_type, "vfat") == 0 ||
++               strcmp(v->fs_type, "ubifs") == 0) {
+         result = mount(v->blk_device, v->mount_point, v->fs_type,
+                        MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
+         if (result == 0) return 0;
+-- 
+2.11.0
+
+
+From 2ded59c1c5a7ce5783a9bc01f47837a15da26124 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 17 Sep 2018 17:54:47 -0700
+Subject: [PATCH 4/5] Add option to mount /system
+
+---
+ default_device.cpp | 2 ++
+ device.h           | 3 ++-
+ recovery.cpp       | 8 ++++++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/default_device.cpp b/default_device.cpp
+index 8010b8c..9007e31 100644
+--- a/default_device.cpp
++++ b/default_device.cpp
+@@ -29,6 +29,7 @@ static const char* ITEMS[] =  {"reboot system now",
+                                "apply update from ADB",
+                                "wipe data/factory reset",
+                                "wipe cache partition",
++                               "mount system partition",
+                                NULL };
+ 
+ class DefaultUI : public ScreenRecoveryUI {
+@@ -75,6 +76,7 @@ class DefaultDevice : public Device {
+           case 1: return APPLY_ADB_SIDELOAD;
+           case 2: return WIPE_DATA;
+           case 3: return WIPE_CACHE;
++          case 4: return MOUNT_SYSTEM;
+           default: return NO_ACTION;
+         }
+     }
+diff --git a/device.h b/device.h
+index 583de75..2c387c2 100644
+--- a/device.h
++++ b/device.h
+@@ -66,7 +66,8 @@ class Device {
+     virtual int HandleMenuKey(int key, int visible) = 0;
+ 
+     enum BuiltinAction { NO_ACTION, REBOOT, APPLY_EXT, APPLY_CACHE,
+-                         APPLY_ADB_SIDELOAD, WIPE_DATA, WIPE_CACHE };
++                         APPLY_ADB_SIDELOAD, WIPE_DATA, WIPE_CACHE,
++                         MOUNT_SYSTEM };
+ 
+     // Perform a recovery action selected from the menu.
+     // 'menu_position' will be the item number of the selected menu
+diff --git a/recovery.cpp b/recovery.cpp
+index 43cd9da..93e3037 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -872,6 +872,14 @@ prompt_and_wait(Device* device, int status) {
+                     }
+                 }
+                 break;
++
++            case Device::MOUNT_SYSTEM:
++                status = ensure_path_mounted("/system");
++                if (status) {
++                        ui->Print("\nFailed to mount /system\n");
++                } else {
++                        ui->Print("\nMounted /system\n");
++                }
+         }
+     }
+ }
+-- 
+2.11.0
+
+
+From aaeb674a93d7fd852fad347814bc01a860a81537 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Fri, 21 Sep 2018 13:50:12 -0700
+Subject: [PATCH 5/5] Allow installing from SD card by default
+
+---
+ default_device.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/default_device.cpp b/default_device.cpp
+index 9007e31..3a022e6 100644
+--- a/default_device.cpp
++++ b/default_device.cpp
+@@ -30,6 +30,7 @@ static const char* ITEMS[] =  {"reboot system now",
+                                "wipe data/factory reset",
+                                "wipe cache partition",
+                                "mount system partition",
++                               "apply update from /sdcard",
+                                NULL };
+ 
+ class DefaultUI : public ScreenRecoveryUI {
+@@ -77,6 +78,7 @@ class DefaultDevice : public Device {
+           case 2: return WIPE_DATA;
+           case 3: return WIPE_CACHE;
+           case 4: return MOUNT_SYSTEM;
++          case 5: return APPLY_EXT;
+           default: return NO_ACTION;
+         }
+     }
+-- 
+2.11.0
+

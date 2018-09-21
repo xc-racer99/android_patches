@@ -1,0 +1,77 @@
+From c40a5e8cf586d35974e151408ba6c8bdba620877 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Tue, 18 Sep 2018 10:29:38 -0700
+Subject: [PATCH] Add support for UBIFS
+
+Change-Id: If479bcc9ef772b614f5008ed018439c83b6aca75
+---
+ core/Makefile                         | 3 +++
+ tools/releasetools/common.py          | 3 ++-
+ tools/releasetools/edify_generator.py | 9 ++++++---
+ 3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/core/Makefile b/core/Makefile
+index 01839ba40c..5bb445b0d4 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -672,6 +672,7 @@ recovery_kernel := $(INSTALLED_KERNEL_TARGET) # same as a non-recovery system
+ recovery_ramdisk := $(PRODUCT_OUT)/ramdisk-recovery.img
+ recovery_build_prop := $(INSTALLED_BUILD_PROP_TARGET)
+ recovery_binary := $(call intermediates-dir-for,EXECUTABLES,recovery)/recovery
++recovery_ubiupdatevol := $(call intermediates-dir-for,EXECUTABLES,recovery_ubiupdatevol)/ubiupdatevol
+ recovery_resources_common := $(call include-path-for, recovery)/res
+ 
+ # Select the 18x32 font on high-density devices; and the 12x22 font on
+@@ -742,6 +743,7 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTFS) $(MKBOOTIMG) $(MINIGZIP) \
+ 		$(INSTALLED_RAMDISK_TARGET) \
+ 		$(INSTALLED_BOOTIMAGE_TARGET) \
+ 		$(recovery_binary) \
++		$(recovery_ubiupdatevol) \
+ 		$(recovery_initrc) $(recovery_kernel) \
+ 		$(INSTALLED_2NDBOOTLOADER_TARGET) \
+ 		$(recovery_build_prop) $(recovery_resource_deps) \
+@@ -757,6 +759,7 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTFS) $(MKBOOTIMG) $(MINIGZIP) \
+ 	$(hide) rm -f $(TARGET_RECOVERY_ROOT_OUT)/init*.rc
+ 	$(hide) cp -f $(recovery_initrc) $(TARGET_RECOVERY_ROOT_OUT)/
+ 	$(hide) -cp $(TARGET_ROOT_OUT)/init.recovery.*.rc $(TARGET_RECOVERY_ROOT_OUT)/
++	$(hide) cp -f $(recovery_ubiupdatevol) $(TARGET_RECOVERY_ROOT_OUT)/sbin/
+ 	$(hide) cp -f $(recovery_binary) $(TARGET_RECOVERY_ROOT_OUT)/sbin/
+ 	$(hide) cp -rf $(recovery_resources_common) $(TARGET_RECOVERY_ROOT_OUT)/
+ 	$(hide) cp -f $(recovery_font) $(TARGET_RECOVERY_ROOT_OUT)/res/images/font.png
+diff --git a/tools/releasetools/common.py b/tools/releasetools/common.py
+index a3217dd9a3..29e9ffaeac 100644
+--- a/tools/releasetools/common.py
++++ b/tools/releasetools/common.py
+@@ -946,7 +946,8 @@ def ComputeDifferences(diffs):
+ 
+ # map recovery.fstab's fs_types to mount/format "partition types"
+ PARTITION_TYPES = { "yaffs2": "MTD", "mtd": "MTD",
+-                    "ext4": "EMMC", "emmc": "EMMC" }
++                    "ext4": "EMMC", "emmc": "EMMC",
++                    "ubifs": "EMMC" }
+ 
+ def GetTypeAndDevice(mount_point, info):
+   fstab = info["fstab"]
+diff --git a/tools/releasetools/edify_generator.py b/tools/releasetools/edify_generator.py
+index c06d07262a..6897c967de 100644
+--- a/tools/releasetools/edify_generator.py
++++ b/tools/releasetools/edify_generator.py
+@@ -176,9 +176,12 @@ class EdifyGenerator(object):
+     fstab = self.info.get("fstab", None)
+     if fstab:
+       p = fstab[partition]
+-      self.script.append('format("%s", "%s", "%s", "%s", "%s");' %
+-                         (p.fs_type, common.PARTITION_TYPES[p.fs_type],
+-                          p.device, p.length, p.mount_point))
++      if p.fs_type == "ubifs":
++        self.script.append('run_program("/sbin/ubiupdatevol", "%s", "-t");' % (p.device))
++      else:
++        self.script.append('format("%s", "%s", "%s", "%s", "%s");' %
++                           (p.fs_type, common.PARTITION_TYPES[p.fs_type],
++                            p.device, p.length, p.mount_point))
+ 
+   def DeleteFiles(self, file_list):
+     """Delete all files in file_list."""
+-- 
+2.11.0
+

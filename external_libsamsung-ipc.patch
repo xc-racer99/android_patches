@@ -1,4 +1,4 @@
-From 195cb4b60fa10d6fa419106be03e0d50450b989e Mon Sep 17 00:00:00 2001
+From 20815a9bd0e44bf69d936fc813c0f7832351c78b Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 15 Apr 2018 12:58:49 -0700
 Subject: [PATCH 1/7] Add crc ccitt calculation
@@ -312,22 +312,22 @@ index 0000000..7b3ddad
 2.11.0
 
 
-From ba6fd0d5b574548c4d408fedc3a74ff5436932ec Mon Sep 17 00:00:00 2001
+From 7a3ac354ff9115355e1be31937ae6bb631581af6 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:55:20 -0700
 Subject: [PATCH 2/7] Add a bunch of RFS commands
 
 Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W)
 ---
- include/rfs.h           | 155 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/rfs.h           | 113 ++++++++++++++++++++++++++++++++++++++++++++++++
  include/samsung-ipc.h   |   1 +
- samsung-ipc/ipc.c       |   8 +++
+ samsung-ipc/ipc.c       |   8 ++++
  samsung-ipc/ipc.h       |   1 +
- samsung-ipc/ipc_utils.c |  38 ++++++++++++
- 5 files changed, 203 insertions(+)
+ samsung-ipc/ipc_utils.c |  38 ++++++++++++++++
+ 5 files changed, 161 insertions(+)
 
 diff --git a/include/rfs.h b/include/rfs.h
-index 7950f16..9a3f2a9 100644
+index 7950f16..2f346ce 100644
 --- a/include/rfs.h
 +++ b/include/rfs.h
 @@ -28,6 +28,25 @@
@@ -356,97 +356,23 @@ index 7950f16..9a3f2a9 100644
  
  /*
   * Values
-@@ -63,6 +82,142 @@ struct ipc_rfs_nv_write_item_response_data {
+@@ -36,6 +55,9 @@
+ #define NV_DATA_SECRET                          "Samsung_Android_RIL"
+ #define NV_DATA_SIZE                                            0x200000
+ #define NV_DATA_CHUNK_SIZE                                      0x1000
++#define IPC_RFS_TYPE_UNKNOWN                                    0x0
++#define IPC_RFS_TYPE_DIRECTORY                                  0x1
++#define IPC_RFS_TYPE_FILE                                       0x2
+ 
+ /*
+  * Structures
+@@ -63,6 +85,97 @@ struct ipc_rfs_nv_write_item_response_data {
      unsigned int length;
  } __attribute__((__packed__));
  
-+struct ipc_rfs_open_file_request_header {
-+    unsigned int flags; // | O_DSYNC
-+    unsigned int path_len;
-+} __attribute__((__packed__));
-+// Followed by path itself
-+
-+struct ipc_rfs_open_file_response_data {
-+    int fd; // or whatever open returns
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_handle_info_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_handle_info_response_data {
-+    unsigned int ret;
-+    unsigned short type; // 0x1 for dir, 0x2 for file
-+    unsigned int size;
-+    unsigned char c_year;
-+    unsigned char c_month;
-+    unsigned char c_day;
-+    unsigned char c_hour;
-+    unsigned char c_min;
-+    unsigned char c_sec;
-+    unsigned char m_year;
-+    unsigned char m_month;
-+    unsigned char m_day;
-+    unsigned char m_hour;
-+    unsigned char m_min;
-+    unsigned char m_sec;
-+    unsigned int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_lseek_file_request_header {
-+    int fd;
-+    int offset;
-+    int whence;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_lseek_file_response_data {
++struct ipc_rfs_generic_io_response_header {
 +    int ret;
 +    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_file_request_header {
-+    int fd;
-+    int length;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_file_response_header {
-+    int len;
-+    int err;
-+} __attribute__((__packed__));
-+// Followed by bytes read
-+
-+struct ipc_rfs_write_file_request_header {
-+    int fd;
-+    int len;
-+} __attribute__((__packed__));
-+// Followed by bytes to write
-+
-+struct ipc_rfs_write_file_response_data {
-+    unsigned int written;
-+    unsigned int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_file_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_file_response_data {
-+    int ret;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_dir_response_data {
-+    unsigned int addr;
-+    unsigned int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_dir_request_header {
-+    unsigned int addr;
 +} __attribute__((__packed__));
 +
 +struct ipc_rfs_read_dir_response_header {
@@ -455,22 +381,9 @@ index 7950f16..9a3f2a9 100644
 +    int err;
 +} __attribute__((__packed__));
 +
-+struct ipc_rfs_close_dir_request_header {
-+    unsigned int addr;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_dir_response_data {
-+    int ret;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_file_info_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_file_info_response_data {
++struct ipc_rfs_file_info_response_data {
 +    unsigned int ret;
-+    unsigned short type; // 0x1 for dir, 0x2 for file
++    unsigned short type;
 +    unsigned int size;
 +    unsigned char c_year;
 +    unsigned char c_month;
@@ -487,13 +400,65 @@ index 7950f16..9a3f2a9 100644
 +    unsigned int err;
 +} __attribute__((__packed__));
 +
++struct ipc_rfs_read_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_write_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_lseek_file_request_header {
++    int fd;
++    int offset;
++    int whence;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_file_request_header {
++    int fd;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_file_info_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_rename_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_unlink_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
 +struct ipc_rfs_make_dir_request_header {
 +    int path_len;
 +} __attribute__((__packed__));
 +
-+struct ipc_rfs_make_dir_response_data {
-+    int ret;
-+    int err;
++struct ipc_rfs_remove_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_file_request_header {
++    unsigned int flags; // | O_DSYNC
++    unsigned int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_handle_info_request_header {
++    int fd;
 +} __attribute__((__packed__));
 +
  /*
@@ -595,7 +560,7 @@ index 33860ce..4e145e9 100644
 2.11.0
 
 
-From 473e5a6ce95d082c758d9a1490954afe7f9ec2d5 Mon Sep 17 00:00:00 2001
+From 542b8116b7d085249301f5bcd27c4ddd1bc242b3 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:58:24 -0700
 Subject: [PATCH 3/7] Add support for SGH-T959P/SGH-T959V/SGH-T959W
@@ -2198,7 +2163,7 @@ index a7a6098..f4ce84f 100644
 2.11.0
 
 
-From d254931ca6b30032de807d29515f78069baaee4d Mon Sep 17 00:00:00 2001
+From 65a0c183cc6b592143eb001d0734d0a3897b687f Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Mon, 23 Apr 2018 17:07:03 -0700
 Subject: [PATCH 4/7] Fix struct ipc_net_serving_network_data definition
@@ -2225,12 +2190,12 @@ index 390541e..6d67e38 100644
 2.11.0
 
 
-From 711c9f94a2a91f2dc850cff977f4f3956136a9de Mon Sep 17 00:00:00 2001
+From 8b5dd9ceb07021144fd450b3bb4fe8639966c4c7 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 24 Apr 2018 14:19:30 -0700
-Subject: [PATCH 5/7] Add more call defines
+Subject: [PATCH 5/7] Add more call type defines
 
-We need to handle them, but adding them here for information purposes
+We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
 ---
  include/call.h          | 3 +++
  samsung-ipc/ipc_utils.c | 6 ++++++
@@ -2271,7 +2236,7 @@ index 4e145e9..8c33e2e 100644
 2.11.0
 
 
-From 2088402eeb45fa7f9fc856dc9b9e3f74e8718eae Mon Sep 17 00:00:00 2001
+From a2d0c480aa9d39b89a8aab08a300b43a1401bb8c Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 26 Apr 2018 11:42:20 -0700
 Subject: [PATCH 6/7] Add a default call type
@@ -2297,7 +2262,7 @@ index cc0988a..4c811c5 100644
 2.11.0
 
 
-From 5f142bbba2f50980d8766cc55993ef21c5a8d8e2 Mon Sep 17 00:00:00 2001
+From d5f7f7090400c685866bef890589f3b2878b504e Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Fri, 24 Aug 2018 17:16:02 -0700
 Subject: [PATCH 7/7] Fix includes for 4.4

@@ -1,9 +1,382 @@
-From 20815a9bd0e44bf69d936fc813c0f7832351c78b Mon Sep 17 00:00:00 2001
+From 2af14f9f70d5787afde143b1482c1ea0fbba9687 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Fri, 24 Aug 2018 17:16:02 -0700
+Subject: [PATCH 1/8] Fix includes for 4.4
+
+I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
+---
+ Android.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.mk b/Android.mk
+index 8944046..f1445fe 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -80,6 +80,7 @@ LOCAL_SRC_FILES := \
+ 	samsung-ipc/gen.c
+ 
+ LOCAL_C_INCLUDES := \
++	external/openssl/include \
+ 	$(LOCAL_PATH)/include \
+ 	$(LOCAL_PATH)/samsung-ipc \
+ 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
+-- 
+2.11.0
+
+
+From c0fbf987452804109de370fe3b19e15e77b38392 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sat, 21 Apr 2018 15:55:20 -0700
+Subject: [PATCH 2/8] Add headers and defines for more RFS commands
+
+Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W) series for copying files from EFS to the modem device
+---
+ include/rfs.h           | 113 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/samsung-ipc.h   |   1 +
+ samsung-ipc/ipc.c       |   8 ++++
+ samsung-ipc/ipc.h       |   1 +
+ samsung-ipc/ipc_utils.c |  38 ++++++++++++++++
+ 5 files changed, 161 insertions(+)
+
+diff --git a/include/rfs.h b/include/rfs.h
+index 7950f16..2f346ce 100644
+--- a/include/rfs.h
++++ b/include/rfs.h
+@@ -28,6 +28,25 @@
+ 
+ #define IPC_RFS_NV_READ_ITEM                                    0x4201
+ #define IPC_RFS_NV_WRITE_ITEM                                   0x4202
++#define IPC_RFS_READ_FILE                                       0x4203
++#define IPC_RFS_WRITE_FILE                                      0x4204
++#define IPC_RFS_LSEEK_FILE                                      0x4205
++#define IPC_RFS_CLOSE_FILE                                      0x4206
++#define IPC_RFS_PUT_FILE                                        0x4207
++#define IPC_RFS_GET_FILE                                        0x4208
++#define IPC_RFS_RENAME_FILE                                     0x4209
++#define IPC_RFS_GET_FILE_INFO                                   0x420a
++#define IPC_RFS_UNLINK_FILE                                     0x420b
++#define IPC_RFS_MAKE_DIR                                        0x420c
++#define IPC_RFS_REMOVE_DIR                                      0x420d
++#define IPC_RFS_OPEN_DIR                                        0x420e
++#define IPC_RFS_READ_DIR                                        0x420f
++#define IPC_RFS_CLOSE_DIR                                       0x4210
++#define IPC_RFS_OPEN_FILE                                       0x4211
++#define IPC_RFS_FTRUNCATE_FILE                                  0x4212
++#define IPC_RFS_GET_HANDLE_INFO                                 0x4213
++#define IPC_RFS_CREATE_FILE                                     0x4214
++#define IPC_RFS_NV_WRITE_ALL_ITEM                               0x4215
+ 
+ /*
+  * Values
+@@ -36,6 +55,9 @@
+ #define NV_DATA_SECRET                          "Samsung_Android_RIL"
+ #define NV_DATA_SIZE                                            0x200000
+ #define NV_DATA_CHUNK_SIZE                                      0x1000
++#define IPC_RFS_TYPE_UNKNOWN                                    0x0
++#define IPC_RFS_TYPE_DIRECTORY                                  0x1
++#define IPC_RFS_TYPE_FILE                                       0x2
+ 
+ /*
+  * Structures
+@@ -63,6 +85,97 @@ struct ipc_rfs_nv_write_item_response_data {
+     unsigned int length;
+ } __attribute__((__packed__));
+ 
++struct ipc_rfs_generic_io_response_header {
++    int ret;
++    int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_dir_response_header {
++    int ret;
++    int len;
++    int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_file_info_response_data {
++    unsigned int ret;
++    unsigned short type;
++    unsigned int size;
++    unsigned char c_year;
++    unsigned char c_month;
++    unsigned char c_day;
++    unsigned char c_hour;
++    unsigned char c_min;
++    unsigned char c_sec;
++    unsigned char m_year;
++    unsigned char m_month;
++    unsigned char m_day;
++    unsigned char m_hour;
++    unsigned char m_min;
++    unsigned char m_sec;
++    unsigned int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_write_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_lseek_file_request_header {
++    int fd;
++    int offset;
++    int whence;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_file_request_header {
++    int fd;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_file_info_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_rename_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_unlink_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_make_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_remove_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_file_request_header {
++    unsigned int flags; // | O_DSYNC
++    unsigned int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_handle_info_request_header {
++    int fd;
++} __attribute__((__packed__));
++
+ /*
+  * Helpers
+  */
+diff --git a/include/samsung-ipc.h b/include/samsung-ipc.h
+index 9d638ec..3bde3c0 100644
+--- a/include/samsung-ipc.h
++++ b/include/samsung-ipc.h
+@@ -105,6 +105,7 @@ char *ipc_client_gprs_get_iface(struct ipc_client *client, unsigned int cid);
+ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
+     struct ipc_client_gprs_capabilities *capabilities);
+ 
++char *ipc_client_efs_root(struct ipc_client *client);
+ char *ipc_client_nv_data_path(struct ipc_client *client);
+ char *ipc_client_nv_data_md5_path(struct ipc_client *client);
+ char *ipc_client_nv_data_backup_path(struct ipc_client *client);
+diff --git a/samsung-ipc/ipc.c b/samsung-ipc/ipc.c
+index b3ee679..fcfd19c 100644
+--- a/samsung-ipc/ipc.c
++++ b/samsung-ipc/ipc.c
+@@ -431,6 +431,14 @@ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
+     return client->gprs_specs->gprs_get_capabilities(capabilities);
+ }
+ 
++char *ipc_client_efs_root(struct ipc_client *client)
++{
++    if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->efs_root == NULL)
++        return NULL;
++
++    return client->nv_data_specs->efs_root;
++}
++
+ char *ipc_client_nv_data_path(struct ipc_client *client)
+ {
+     if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->nv_data_path == NULL)
+diff --git a/samsung-ipc/ipc.h b/samsung-ipc/ipc.h
+index 60fca12..ed483f2 100644
+--- a/samsung-ipc/ipc.h
++++ b/samsung-ipc/ipc.h
+@@ -70,6 +70,7 @@ struct ipc_client_gprs_specs {
+ };
+ 
+ struct ipc_client_nv_data_specs {
++    char *efs_root;
+     char *nv_data_path;
+     char *nv_data_md5_path;
+     char *nv_data_backup_path;
+diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
+index 33860ce..4e145e9 100644
+--- a/samsung-ipc/ipc_utils.c
++++ b/samsung-ipc/ipc_utils.c
+@@ -345,6 +345,44 @@ const char *ipc_command_string(unsigned short command)
+             return "IPC_RFS_NV_READ_ITEM";
+         case IPC_RFS_NV_WRITE_ITEM:
+             return "IPC_RFS_NV_WRITE_ITEM";
++        case IPC_RFS_READ_FILE:
++            return "IPC_RFS_READ_FILE";
++        case IPC_RFS_WRITE_FILE:
++            return "IPC_RFS_WRITE_FILE";
++        case IPC_RFS_LSEEK_FILE:
++            return "IPC_RFS_LSEEK_FILE";
++        case IPC_RFS_CLOSE_FILE:
++            return "IPC_RFS_CLOSE_FILE";
++        case IPC_RFS_PUT_FILE:
++            return "IPC_RFS_PUT_FILE";
++        case IPC_RFS_GET_FILE:
++            return "IPC_RFS_GET_FILE";
++        case IPC_RFS_RENAME_FILE:
++            return "IPC_RFS_RENAME_FILE";
++        case IPC_RFS_GET_FILE_INFO:
++            return "IPC_RFS_GET_FILE_INFO";
++        case IPC_RFS_UNLINK_FILE:
++            return "IPC_RFS_UNLINK_FILE";
++        case IPC_RFS_MAKE_DIR:
++            return "IPC_RFS_MAKE_DIR";
++        case IPC_RFS_REMOVE_DIR:
++            return "IPC_RFS_REMOVE_DIR";
++        case IPC_RFS_OPEN_DIR:
++            return "IPC_RFS_OPEN_DIR";
++        case IPC_RFS_READ_DIR:
++            return "IPC_RFS_READ_DIR";
++        case IPC_RFS_CLOSE_DIR:
++            return "IPC_RFS_CLOSE_DIR";
++        case IPC_RFS_OPEN_FILE:
++            return "IPC_RFS_OPEN_FILE";
++        case IPC_RFS_FTRUNCATE_FILE:
++            return "IPC_RFS_FTRUNCATE_FILE";
++        case IPC_RFS_GET_HANDLE_INFO:
++            return "IPC_RFS_GET_HANDLE_INFO";
++        case IPC_RFS_CREATE_FILE:
++            return "IPC_RFS_CREATE_FILE";
++        case IPC_RFS_NV_WRITE_ALL_ITEM:
++            return "IPC_RFS_NV_WRITE_ALL_ITEM";
+         case IPC_GEN_PHONE_RES:
+             return "IPC_GEN_PHONE_RES";
+         default:
+-- 
+2.11.0
+
+
+From cf894c5c30f403c85a990b0e80ce59fbd9def4e3 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 23 Apr 2018 17:07:03 -0700
+Subject: [PATCH 3/8] Fix struct ipc_net_serving_network_data definition
+
+On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
+---
+ include/net.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/net.h b/include/net.h
+index 390541e..6d67e38 100644
+--- a/include/net.h
++++ b/include/net.h
+@@ -94,7 +94,7 @@ struct ipc_net_plmn_sel_request_data {
+ struct ipc_net_serving_network_data {
+     unsigned char unknown[3];
+     char plmn[6];
+-    unsigned short lac;
++    unsigned char lac; // This can be either a short or a char
+ } __attribute__((__packed__));
+ 
+ struct ipc_net_plmn_list_header {
+-- 
+2.11.0
+
+
+From 4db4786b4ab6fcab41b3459b5a67f5a132ad744e Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Tue, 24 Apr 2018 14:19:30 -0700
+Subject: [PATCH 4/8] Add more call type defines
+
+We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
+---
+ include/call.h          | 3 +++
+ samsung-ipc/ipc_utils.c | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/include/call.h b/include/call.h
+index 4f5d152..cc0988a 100644
+--- a/include/call.h
++++ b/include/call.h
+@@ -37,6 +37,9 @@
+ #define IPC_CALL_CONT_DTMF                                      0x0208
+ #define IPC_CALL_WAITING                                        0x0209
+ #define IPC_CALL_LINE_ID                                        0x020A
++#define IPC_CALL_SIGNAL                                         0x020B
++#define IPC_CALL_VOICE_PRIVACY                                  0x020C
++#define IPC_CALL_CALL_TIME_COUNT                                0x020D
+ 
+ /*
+  * Values
+diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
+index 4e145e9..8c33e2e 100644
+--- a/samsung-ipc/ipc_utils.c
++++ b/samsung-ipc/ipc_utils.c
+@@ -117,6 +117,12 @@ const char *ipc_command_string(unsigned short command)
+             return "IPC_CALL_WAITING";
+         case IPC_CALL_LINE_ID:
+             return "IPC_CALL_LINE_ID";
++        case IPC_CALL_SIGNAL:
++            return "IPC_CALL_SIGNAL";
++        case IPC_CALL_VOICE_PRIVACY:
++            return "IPC_CALL_VOICE_PRIVACY";
++        case IPC_CALL_CALL_TIME_COUNT:
++            return "IPC_CALL_CALL_TIME_COUNT";
+         case IPC_SMS_SEND_MSG:
+             return "IPC_SMS_SEND_MSG";
+         case IPC_SMS_INCOMING_MSG:
+-- 
+2.11.0
+
+
+From c14e65fba620130534cfaec3dbdd315336883843 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 26 Apr 2018 11:42:20 -0700
+Subject: [PATCH 5/8] Add a default call type
+
+Used instead of voice with some devices
+---
+ include/call.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/call.h b/include/call.h
+index cc0988a..4c811c5 100644
+--- a/include/call.h
++++ b/include/call.h
+@@ -45,6 +45,7 @@
+  * Values
+  */
+ 
++#define IPC_CALL_TYPE_DEFAULT                                   0x00
+ #define IPC_CALL_TYPE_VOICE                                     0x01
+ #define IPC_CALL_TYPE_DATA                                      0x03
+ 
+-- 
+2.11.0
+
+
+From 42aaa1a0dfe7b8900ad5a3bdadcc9c526f4fad88 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 15 Apr 2018 12:58:49 -0700
-Subject: [PATCH 1/7] Add crc ccitt calculation
+Subject: [PATCH 6/8] Add CRC CCITT calculation library
 
-Used in M5730 serial communication (XMODEM)
+The XMODEM version is used by Galaxy S 4G devices in the serial communication with its STE M5730 modem
 
 From https://github.com/lammertb/libcrc/tree/v2.0
 ---
@@ -16,7 +389,7 @@ From https://github.com/lammertb/libcrc/tree/v2.0
  create mode 100644 samsung-ipc/crc_ccitt.c
 
 diff --git a/Android.mk b/Android.mk
-index 8944046..1b60041 100644
+index f1445fe..3aa9dd0 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -68,6 +68,7 @@ LOCAL_SRC_FILES := \
@@ -312,274 +685,26 @@ index 0000000..7b3ddad
 2.11.0
 
 
-From 7a3ac354ff9115355e1be31937ae6bb631581af6 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Sat, 21 Apr 2018 15:55:20 -0700
-Subject: [PATCH 2/7] Add a bunch of RFS commands
-
-Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W)
----
- include/rfs.h           | 113 ++++++++++++++++++++++++++++++++++++++++++++++++
- include/samsung-ipc.h   |   1 +
- samsung-ipc/ipc.c       |   8 ++++
- samsung-ipc/ipc.h       |   1 +
- samsung-ipc/ipc_utils.c |  38 ++++++++++++++++
- 5 files changed, 161 insertions(+)
-
-diff --git a/include/rfs.h b/include/rfs.h
-index 7950f16..2f346ce 100644
---- a/include/rfs.h
-+++ b/include/rfs.h
-@@ -28,6 +28,25 @@
- 
- #define IPC_RFS_NV_READ_ITEM                                    0x4201
- #define IPC_RFS_NV_WRITE_ITEM                                   0x4202
-+#define IPC_RFS_READ_FILE                                       0x4203
-+#define IPC_RFS_WRITE_FILE                                      0x4204
-+#define IPC_RFS_LSEEK_FILE                                      0x4205
-+#define IPC_RFS_CLOSE_FILE                                      0x4206
-+#define IPC_RFS_PUT_FILE                                        0x4207
-+#define IPC_RFS_GET_FILE                                        0x4208
-+#define IPC_RFS_RENAME_FILE                                     0x4209
-+#define IPC_RFS_GET_FILE_INFO                                   0x420a
-+#define IPC_RFS_UNLINK_FILE                                     0x420b
-+#define IPC_RFS_MAKE_DIR                                        0x420c
-+#define IPC_RFS_REMOVE_DIR                                      0x420d
-+#define IPC_RFS_OPEN_DIR                                        0x420e
-+#define IPC_RFS_READ_DIR                                        0x420f
-+#define IPC_RFS_CLOSE_DIR                                       0x4210
-+#define IPC_RFS_OPEN_FILE                                       0x4211
-+#define IPC_RFS_FTRUNCATE_FILE                                  0x4212
-+#define IPC_RFS_GET_HANDLE_INFO                                 0x4213
-+#define IPC_RFS_CREATE_FILE                                     0x4214
-+#define IPC_RFS_NV_WRITE_ALL_ITEM                               0x4215
- 
- /*
-  * Values
-@@ -36,6 +55,9 @@
- #define NV_DATA_SECRET                          "Samsung_Android_RIL"
- #define NV_DATA_SIZE                                            0x200000
- #define NV_DATA_CHUNK_SIZE                                      0x1000
-+#define IPC_RFS_TYPE_UNKNOWN                                    0x0
-+#define IPC_RFS_TYPE_DIRECTORY                                  0x1
-+#define IPC_RFS_TYPE_FILE                                       0x2
- 
- /*
-  * Structures
-@@ -63,6 +85,97 @@ struct ipc_rfs_nv_write_item_response_data {
-     unsigned int length;
- } __attribute__((__packed__));
- 
-+struct ipc_rfs_generic_io_response_header {
-+    int ret;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_dir_response_header {
-+    int ret;
-+    int len;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_file_info_response_data {
-+    unsigned int ret;
-+    unsigned short type;
-+    unsigned int size;
-+    unsigned char c_year;
-+    unsigned char c_month;
-+    unsigned char c_day;
-+    unsigned char c_hour;
-+    unsigned char c_min;
-+    unsigned char c_sec;
-+    unsigned char m_year;
-+    unsigned char m_month;
-+    unsigned char m_day;
-+    unsigned char m_hour;
-+    unsigned char m_min;
-+    unsigned char m_sec;
-+    unsigned int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_file_request_header {
-+    int fd;
-+    int len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_write_file_request_header {
-+    int fd;
-+    int len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_lseek_file_request_header {
-+    int fd;
-+    int offset;
-+    int whence;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_file_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_file_info_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_rename_file_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_unlink_file_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_make_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_remove_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_dir_request_header {
-+    unsigned int addr;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_dir_request_header {
-+    unsigned int addr;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_file_request_header {
-+    unsigned int flags; // | O_DSYNC
-+    unsigned int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_handle_info_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
- /*
-  * Helpers
-  */
-diff --git a/include/samsung-ipc.h b/include/samsung-ipc.h
-index 9d638ec..3bde3c0 100644
---- a/include/samsung-ipc.h
-+++ b/include/samsung-ipc.h
-@@ -105,6 +105,7 @@ char *ipc_client_gprs_get_iface(struct ipc_client *client, unsigned int cid);
- int ipc_client_gprs_get_capabilities(struct ipc_client *client,
-     struct ipc_client_gprs_capabilities *capabilities);
- 
-+char *ipc_client_efs_root(struct ipc_client *client);
- char *ipc_client_nv_data_path(struct ipc_client *client);
- char *ipc_client_nv_data_md5_path(struct ipc_client *client);
- char *ipc_client_nv_data_backup_path(struct ipc_client *client);
-diff --git a/samsung-ipc/ipc.c b/samsung-ipc/ipc.c
-index b3ee679..fcfd19c 100644
---- a/samsung-ipc/ipc.c
-+++ b/samsung-ipc/ipc.c
-@@ -431,6 +431,14 @@ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
-     return client->gprs_specs->gprs_get_capabilities(capabilities);
- }
- 
-+char *ipc_client_efs_root(struct ipc_client *client)
-+{
-+    if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->efs_root == NULL)
-+        return NULL;
-+
-+    return client->nv_data_specs->efs_root;
-+}
-+
- char *ipc_client_nv_data_path(struct ipc_client *client)
- {
-     if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->nv_data_path == NULL)
-diff --git a/samsung-ipc/ipc.h b/samsung-ipc/ipc.h
-index 60fca12..ed483f2 100644
---- a/samsung-ipc/ipc.h
-+++ b/samsung-ipc/ipc.h
-@@ -70,6 +70,7 @@ struct ipc_client_gprs_specs {
- };
- 
- struct ipc_client_nv_data_specs {
-+    char *efs_root;
-     char *nv_data_path;
-     char *nv_data_md5_path;
-     char *nv_data_backup_path;
-diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
-index 33860ce..4e145e9 100644
---- a/samsung-ipc/ipc_utils.c
-+++ b/samsung-ipc/ipc_utils.c
-@@ -345,6 +345,44 @@ const char *ipc_command_string(unsigned short command)
-             return "IPC_RFS_NV_READ_ITEM";
-         case IPC_RFS_NV_WRITE_ITEM:
-             return "IPC_RFS_NV_WRITE_ITEM";
-+        case IPC_RFS_READ_FILE:
-+            return "IPC_RFS_READ_FILE";
-+        case IPC_RFS_WRITE_FILE:
-+            return "IPC_RFS_WRITE_FILE";
-+        case IPC_RFS_LSEEK_FILE:
-+            return "IPC_RFS_LSEEK_FILE";
-+        case IPC_RFS_CLOSE_FILE:
-+            return "IPC_RFS_CLOSE_FILE";
-+        case IPC_RFS_PUT_FILE:
-+            return "IPC_RFS_PUT_FILE";
-+        case IPC_RFS_GET_FILE:
-+            return "IPC_RFS_GET_FILE";
-+        case IPC_RFS_RENAME_FILE:
-+            return "IPC_RFS_RENAME_FILE";
-+        case IPC_RFS_GET_FILE_INFO:
-+            return "IPC_RFS_GET_FILE_INFO";
-+        case IPC_RFS_UNLINK_FILE:
-+            return "IPC_RFS_UNLINK_FILE";
-+        case IPC_RFS_MAKE_DIR:
-+            return "IPC_RFS_MAKE_DIR";
-+        case IPC_RFS_REMOVE_DIR:
-+            return "IPC_RFS_REMOVE_DIR";
-+        case IPC_RFS_OPEN_DIR:
-+            return "IPC_RFS_OPEN_DIR";
-+        case IPC_RFS_READ_DIR:
-+            return "IPC_RFS_READ_DIR";
-+        case IPC_RFS_CLOSE_DIR:
-+            return "IPC_RFS_CLOSE_DIR";
-+        case IPC_RFS_OPEN_FILE:
-+            return "IPC_RFS_OPEN_FILE";
-+        case IPC_RFS_FTRUNCATE_FILE:
-+            return "IPC_RFS_FTRUNCATE_FILE";
-+        case IPC_RFS_GET_HANDLE_INFO:
-+            return "IPC_RFS_GET_HANDLE_INFO";
-+        case IPC_RFS_CREATE_FILE:
-+            return "IPC_RFS_CREATE_FILE";
-+        case IPC_RFS_NV_WRITE_ALL_ITEM:
-+            return "IPC_RFS_NV_WRITE_ALL_ITEM";
-         case IPC_GEN_PHONE_RES:
-             return "IPC_GEN_PHONE_RES";
-         default:
--- 
-2.11.0
-
-
-From 542b8116b7d085249301f5bcd27c4ddd1bc242b3 Mon Sep 17 00:00:00 2001
+From cf98ad19356a5e86b71524ea8e9bd329193cbe03 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:58:24 -0700
-Subject: [PATCH 3/7] Add support for SGH-T959P/SGH-T959V/SGH-T959W
+Subject: [PATCH 7/8] Add support for SGH-T959P/SGH-T959V/SGH-T959W
 
 They are a part of the first-gen Galaxy S series and use an STE M5730.  They communicate in a very similar manner to aries
 ---
  Android.mk                                |    6 +
  samsung-ipc/Makefile.am                   |    2 +
  samsung-ipc/devices/aries/onedram.h       |    1 +
- samsung-ipc/devices/galaxys4g/galaxys4g.c | 1367 +++++++++++++++++++++++++++++
- samsung-ipc/devices/galaxys4g/galaxys4g.h |  114 +++
+ samsung-ipc/devices/galaxys4g/galaxys4g.c | 1219 +++++++++++++++++++++++++++++
+ samsung-ipc/devices/galaxys4g/galaxys4g.h |   98 +++
  samsung-ipc/ipc_devices.c                 |   10 +
  samsung-ipc/ipc_devices.h                 |    1 +
- 7 files changed, 1501 insertions(+)
+ 7 files changed, 1337 insertions(+)
  create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.c
  create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.h
 
 diff --git a/Android.mk b/Android.mk
-index 1b60041..35d4db9 100644
+index 3aa9dd0..18b7720 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -23,6 +23,10 @@ ifneq (,$(filter crespo,$(TARGET_DEVICE)))
@@ -601,8 +726,8 @@ index 1b60041..35d4db9 100644
  	samsung-ipc/devices/maguro/maguro.c \
  	samsung-ipc/devices/piranha/piranha.c \
  	samsung-ipc/devices/i9300/i9300.c \
-@@ -83,6 +88,7 @@ LOCAL_SRC_FILES := \
- LOCAL_C_INCLUDES := \
+@@ -84,6 +89,7 @@ LOCAL_C_INCLUDES := \
+ 	external/openssl/include \
  	$(LOCAL_PATH)/include \
  	$(LOCAL_PATH)/samsung-ipc \
 +	$(LOCAL_PATH)/samsung-ipc/devices/aries/ \
@@ -635,10 +760,10 @@ index 9c69c76..ac7a172 100644
  #endif /* __ONEDRAM_H__ */
 diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.c b/samsung-ipc/devices/galaxys4g/galaxys4g.c
 new file mode 100644
-index 0000000..b89d809
+index 0000000..6577865
 --- /dev/null
 +++ b/samsung-ipc/devices/galaxys4g/galaxys4g.c
-@@ -0,0 +1,1367 @@
+@@ -0,0 +1,1219 @@
 +/*
 + * This file is part of libsamsung-ipc.
 + *
@@ -674,7 +799,6 @@ index 0000000..b89d809
 +#include <sys/mman.h>
 +#include <termios.h>
 +#include <net/if.h>
-+#include <hardware_legacy/power.h>
 +
 +#include <samsung-ipc.h>
 +#include <checksum.h>
@@ -687,1331 +811,1184 @@ index 0000000..b89d809
 +#include "xmm616.h"
 +
 +const char* const send_protroms[] = {
-+	"\x64",
-+	"\x64\x88\x01",
-+	"\x64\x88\x01\x04",
-+	"\x04\x00",
++    "\x64",
++    "\x64\x88\x01",
++    "\x64\x88\x01\x04",
++    "\x04\x00",
 +};
 +
-+int galaxys4g_boot(struct ipc_client *client)
++int m5730_write_baud_change(struct ipc_client *client, int serial_fd)
 +{
-+	int rc = 0;
-+	int onedram_fd = -1;
-+	int serial_fd = -1;
-+	speed_t baud_rate = 0;
++    struct timeval time;
++    fd_set fds;
++    unsigned char buf[8];
++    int rc;
++    int i;
 +
-+	// Hold wake lock
-+	acquire_wake_lock(PARTIAL_WAKE_LOCK, GALAXYS4G_WAKE_LOCK_NAME);
++    usleep(110000);
 +
-+	rc = network_iface_down(GALAXYS4G_MODEM_IFACE, AF_PHONET, SOCK_DGRAM);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Turning modem network iface down failed");
-+		goto error_opening;
-+	}
-+	ipc_client_log(client, "Turned modem network iface down");
++start_z_protocol:
++    /* Flush serial */
++    ioctl(serial_fd, TCFLSH, TCIOFLUSH);
 +
-+	// Open onedram, if necessary
-+	onedram_fd = get_onedram_fd();
-+	if (onedram_fd < 0) {
-+		onedram_fd = open(GALAXYS4G_ONEDRAM_DEVICE, O_RDWR);
-+		if (onedram_fd < 0) {
-+			ipc_client_log(client, "Failed to open %s", GALAXYS4G_ONEDRAM_DEVICE);
-+			goto error_opening;
-+		}
-+	}
++    /* Write b */
++    rc = write(serial_fd, "b", 1);
++    if (rc != 1) {
++        ipc_client_log(client, "Failed to write b");
++        return -1;
++    }
++    ipc_client_log(client, "Wrote b");
 +
-+init_device:
-+	// Flush onedram, just in case
-+	rc = ioctl(onedram_fd, TCFLSH, TCIOFLUSH);
-+	ipc_client_log(client, "Flushing onedram returned %d", rc);
-+	usleep(100000);
++    usleep(50000);
 +
-+	// Initialize serial
-+	serial_fd = init_serial(client, 0);
-+	if (serial_fd < 0) {
-+	ipc_client_log(client, "Failed to open serial device");
-+		goto error_opening;
-+	}
++    FD_ZERO(&fds);
++    FD_SET(serial_fd, &fds);
 +
-+	// Determine baud rate
-+	baud_rate = determine_baud_rate(serial_fd);
-+	if (baud_rate != B9600) {
-+		ipc_client_log(client, "Unknown baud rate %lu", baud_rate);
-+		goto error_opening;
-+	}
-+	ipc_client_log(client, "Succesfully opened %s with a baud rate of 9600", GALAXYS4G_MODEM_SERIAL_DEVICE);
++    time.tv_sec = 60;
++    time.tv_usec = 0;
 +
-+	// Turn off and back on modemctl
-+	rc = galaxys4g_power(GALAXYS4G_POWER_OFF);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to send power off");
-+		goto error_opening;
-+	}
++    rc = select(serial_fd + 1, &fds, NULL, NULL, &time);
++    if (rc < 0) {
++        ipc_client_log(client, "Select encountered an error");
++        return -1;
++    }
++    if (!FD_ISSET(serial_fd, &fds)) {
++        ipc_client_log(client, "Nothing to read!");
++        return -1;
++    }
 +
-+	usleep(1000);
++    rc = read(serial_fd, buf, sizeof(buf));
++    if (rc == 1) {
++        /* If it's a z, resend b */
++        if (buf[0] == 'z')
++            goto start_z_protocol;
 +
-+	rc = galaxys4g_power(GALAXYS4G_POWER_ON);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to send power on");
-+		goto error_opening;
-+	}
-+	
-+	// Connect to M5730
-+	serial_fd = connect_ccpu(client, serial_fd);
-+	if (serial_fd < 0) {
-+		ipc_client_log(client, "Failed to connect to CCPU, error %d", serial_fd);
-+		goto error_retry;
-+	}
++        ipc_client_log(client, "Read unkown byte %c", buf[0]);
++        return -1;
++    } else if (rc != 8) {
++        ipc_client_log(client, "Didn't read 8 bytes, read %d bytes instead", rc);
++        return -1;
++    }
 +
-+	usleep(50000);
++    /* Just some debugging */
++    for (i = 0; i < rc; i++) {
++        ipc_client_log(client, "Buf[%d] = 0x%x", i, buf[i]);
++    }
 +
-+	// Load modem.bin part to serial
-+	rc = load_modem_serial(client, serial_fd);
-+	if (rc) {
-+		if (rc == -5) {
-+			ipc_client_log(client, "Ignoring failed read of protrom, assuming modem.bin succesfully uploaded");
-+		} else {
-+			ipc_client_log(client, "Failed to load modem.bin to serial");
-+			goto error_retry;
-+		}
-+	}
++    /* Write S4 to change UART speed */
++    rc = write(serial_fd, "S4", 2);
++    if (rc != 2) {
++        ipc_client_log(client, "Failed to write S4 to change speed");
++        return -1;
++    }
 +
-+	// Load second part of modem.bin to onedram
-+	rc = load_modem_onedram(client, onedram_fd);
-+	if (rc == -1) {
-+		ipc_client_log(client, "Select timed out - retrying CP booting");
-+		goto error_retry;
-+	} else if (rc) {
-+		ipc_client_log(client, "Failed to load modem.bin to onedram");
-+		goto error_retry;
-+	}
++    ioctl(serial_fd, TCFLSH, TCIOFLUSH);
 +
-+	rc = 0;
-+	goto complete;
++    return 0;
++}
 +
-+error_retry:
-+	// Reset modem
-+	rc = galaxys4g_power(GALAXYS4G_POWER_RESET);
-+	if (rc != 0) {
-+		ipc_client_log(client, "Failed to reset modem");
-+	}
++int m5730_receive_protrom(int fd)
++{
++    int rc;
++    int i;
++    unsigned int ack;
++    unsigned char data[32];
++    fd_set fds;
++    struct timeval time;
 +
-+	// Flush serial
-+	if (serial_fd >= 0) {
-+		rc = ioctl(serial_fd, TCFLSH, TCIOFLUSH);
-+		if (rc != 0) {
-+			ipc_client_log(client, "Failed to flush serial, error %d", rc);
-+		}
-+	close(serial_fd);
-+	}
++    ack = SERIAL_ACK;
 +
-+	goto init_device;
-+	
-+error_opening:
-+	rc = -1;
-+	if (serial_fd >= 0)
-+		close(serial_fd);
++    time.tv_sec = 2;
++    time.tv_usec = 0;
 +
-+	if (onedram_fd >= 0)
-+	close(onedram_fd);
++    FD_ZERO(&fds);
++    FD_SET(fd, &fds);
 +
-+complete:
-+	release_wake_lock(GALAXYS4G_WAKE_LOCK_NAME);
-+	
-+	return rc;
++    rc = select(fd + 1, &fds, NULL, NULL, &time);
++
++    if (rc < 0)
++        return rc;
++
++    if (!FD_ISSET(fd, &fds))
++        return -1;
++
++    rc = read(fd, data, sizeof(data));
++    if (rc <= 0)
++        return -1;
++
++    for (i = 0; i < rc; i++) {
++        if (memcmp(data + i, &ack, sizeof(ack)) == 0)
++            return 0;
++    }
++
++    /* Couldn't find ack */
++    return -1;
++}
++
++int m5730_send_protrom(int fd, int n)
++{
++    int rc;
++    unsigned short xmodem_crc;
++    unsigned int ack;
++    unsigned short protrom_len = sizeof(send_protroms[n]);
++    size_t total_len = sizeof(ack) + 1 + sizeof(protrom_len) + protrom_len + sizeof(xmodem_crc);
++    unsigned char *buf;
++
++    buf = calloc(1, total_len);
++    if (buf == NULL)
++        return -1;
++
++    ack = SERIAL_ACK;
++
++    memcpy(buf, &ack, sizeof(ack));
++    memcpy(buf + sizeof(ack) + 1, &protrom_len, sizeof(protrom_len));
++    memcpy(buf + sizeof(ack) + 1 + sizeof(protrom_len), send_protroms[n], protrom_len);
++
++    /* Calculate and copy CRC */
++    xmodem_crc = crc_xmodem(buf, total_len - 2);
++    memcpy(buf + sizeof(ack) + 1 + sizeof(protrom_len) + protrom_len, &xmodem_crc, sizeof(xmodem_crc));
++
++    rc = write(fd, buf, total_len);
++
++    free(buf);
++
++    return rc < 0 ? -1 : 0;
++}
++
++int m5730_connect_ccpu(struct ipc_client *client, int serial_fd)
++{
++    int i;
++    int rc;
++
++    usleep(50000);
++
++    /* Send R to quit z-protocol */
++    rc = write(serial_fd, "R", 1);
++    if (rc != 1) {
++        ipc_client_log(client, "Failed to send R to quit z-protocol");
++        return -1;
++    }
++    ipc_client_log(client, "Sent R to quit z-protocol");
++
++    /* Receive/send protrom */
++    for (i = 0; i < 4; i++) {
++        rc = m5730_receive_protrom(serial_fd);
++        if (rc) {
++            ipc_client_log(client, "Failed to receive protrom, %d", rc);
++            return -1;
++        }
++
++        rc = m5730_send_protrom(serial_fd, i);
++        if (rc < 0) {
++            ipc_client_log(client, "Failed to send protrom #%d", i);
++            return -1;
++        }
++
++        usleep(50000);
++        ipc_client_log(client, "Sent protrom #%d", i);
++    }
++
++    return 0;
++}
++
++int load_modem_serial_part(int serial_fd, struct galaxys4g_modem_data_header header, int modem_fd)
++{
++    int rc;
++    unsigned short xmodem_crc;
++    unsigned char *buf;
++
++    buf = malloc(sizeof(header) + header.len - 1 + sizeof(xmodem_crc));
++    if (buf == NULL)
++        return -1;
++
++    memcpy(buf, &header, sizeof(header));
++    rc = read(modem_fd, buf + sizeof(header), header.len - 1);
++    if (rc != header.len - 1)
++        goto error;
++
++    xmodem_crc = crc_xmodem(buf, sizeof(header) + header.len - 1);
++    memcpy(buf + sizeof(header) + header.len - 1, &xmodem_crc, sizeof(xmodem_crc));
++
++    rc = write(serial_fd, buf, sizeof(header) + header.len - 1 + sizeof(xmodem_crc));
++    if (rc < 0)
++        goto error;
++
++    free(buf);
++    return 0;
++
++error:
++    if (buf != NULL)
++        free(buf);
++    return -1;
 +}
 +
 +int load_modem_serial(struct ipc_client *client, int serial_fd)
 +{
-+	int rc;
-+	int modem_fd;
-+	uint16_t xmodem_crc;
-+	size_t ack_len;
-+	size_t data_len_1 = 870;
-+	size_t data_len_2 = 10652;
-+	size_t total_len;
-+	unsigned char* buf;
++    struct galaxys4g_modem_data_header header;
++    int modem_fd;
++    int rc;
 +
-+	modem_fd = open(GALAXYS4G_MODEM_IMAGE_DEVICE, O_RDONLY);
-+	if (modem_fd < 0) {
-+		ipc_client_log(client, "Failed to open %s, error %d", GALAXYS4G_MODEM_IMAGE_DEVICE, modem_fd);
-+		return -1;
-+	}
++    modem_fd = open(GALAXYS4G_MODEM_IMAGE_DEVICE, O_RDONLY);
++    if (modem_fd < 0) {
++        ipc_client_log(client, "Failed to open %s, error %d", GALAXYS4G_MODEM_IMAGE_DEVICE, modem_fd);
++        return -1;
++    }
 +
-+	ack_len = strlen(serial_ack);
++    /* First 12 bytes are a header we don't know what means, but is constant throughout modems */
++    lseek(modem_fd, 12, SEEK_SET);
 +
-+	buf = malloc(GALAXYS4G_MODEM_HEADER_SIZE);
-+	if (!buf) {
-+		rc = -2;
-+		goto error;
-+	}
++    header.serial_ack = SERIAL_ACK;
++    header.padding = 0;
++    header.len = 871;
++    header.type = 1;
 +
-+	// First 12 bytes are a header we don't know what means, but is constant throughout modems
-+	lseek(modem_fd, 12, SEEK_SET);
++    rc = load_modem_serial_part(serial_fd, header, modem_fd);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to send modem.bin part 1 to serial");
++        goto error;
++    }
 +
-+	// Setup sending
-+	total_len = ack_len + 1 + strlen(modem_len_1) + data_len_1;
-+	memcpy(buf, serial_ack, ack_len);
-+	memset(buf + ack_len, 0, 1);
-+	memcpy(buf + ack_len + 1, modem_len_1, strlen(modem_len_1));
-+	read(modem_fd, buf + total_len - data_len_1, data_len_1);
++    usleep(100000);
 +
-+	// Calculate checksum
-+	xmodem_crc = crc_xmodem(buf, total_len);
-+	memcpy(buf + total_len, &xmodem_crc, sizeof(xmodem_crc));
++    rc = m5730_receive_protrom(serial_fd);
++    if (rc) {
++        ipc_client_log(client, "Failed to receive ack for modem.bin part 1");
++        goto error;
++    }
 +
-+	// Send!
-+	rc = write(serial_fd, buf, total_len + 2);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to send modem part #1, error %d", rc);
-+		rc = -3;
-+		goto error;
-+	} else {
-+		ipc_client_log(client, "Sent %d bytes for modem part #1", rc);
-+	}
++    /* Part 2 - 2 bytes padding */
++    lseek(modem_fd, 2, SEEK_CUR);
 +
-+	usleep(100000);
-+	rc = receive_protrom(serial_fd, buf);
-+	if (rc) {
-+		ipc_client_log(client, "Failed to receive ack, error %d");
-+		test_printf(client, buf, 11);
-+		rc = -4;
-+		goto error;
-+	}
++    /* Another unknown 12 byte header */
++    lseek(modem_fd, 12, SEEK_CUR);
 +
-+	// Part 2 - 2 bytes padding
-+	lseek(modem_fd, 2, SEEK_CUR);
++    header.len = 10653;
++    header.type = 3;
 +
-+	// Another unknown 12 byte header
-+	lseek(modem_fd, 12, SEEK_CUR);
++    rc = load_modem_serial_part(serial_fd, header, modem_fd);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to send modem.bin part 2 to serial");
++        goto error;
++    }
 +
-+	// Setup sending
-+	total_len = ack_len + 1 + strlen(modem_len_2) + data_len_2;
-+	memcpy(buf, serial_ack, ack_len);
-+	memset(buf + ack_len, 0, 1);
-+	memcpy(buf + ack_len + 1, modem_len_2, strlen(modem_len_2));
-+	read(modem_fd, buf + total_len - data_len_2, data_len_2);
++    usleep(100000);
 +
-+	// Calculate checksum
-+	xmodem_crc = crc_xmodem(buf, total_len);
-+	memcpy(buf + total_len, &xmodem_crc, sizeof(xmodem_crc));
++    /* Check response */
++    rc = m5730_receive_protrom(serial_fd);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to receive ack for modem.bin part 2");
++        goto error;
++    }
 +
-+	// Send!
-+	rc = write(serial_fd, buf, total_len + 2);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to send modem part #2, error %d", rc);
-+		test_printf(client, buf, total_len + 2);
-+		rc = -4;
-+		goto error;
-+	} else {
-+		ipc_client_log(client, "Sent %d bytes for modem part #2", rc);
-+	}
-+
-+	// Check response
-+	rc = receive_protrom(serial_fd, buf);
-+	if (rc != 0) {
-+		ipc_client_log(client, "Failed to receive ack, error %d");
-+		test_printf(client, buf, 11);
-+		ipc_client_log(client, "Failed to receive protrom");
-+		rc = -5;
-+	}
++    close(modem_fd);
++    return 0;
 +
 +error:
-+	if (modem_fd >= 0)
-+		close(modem_fd);
-+	if (buf)
-+		free(buf);
-+	return rc;
++    if (modem_fd >= 0)
++        close(modem_fd);
++
++    return -1;
 +}
 +
 +int load_modem_onedram(struct ipc_client *client, int onedram_fd)
 +{
-+	void *onedram_addr = NULL;
-+	int modem_fd = -1;
-+	int rc;
-+	int i;
-+	unsigned int onedram_init;
-+	unsigned int onedram_magic;
-+	unsigned int onedram_deinit;
-+	struct timeval timeout;
-+	fd_set fds;
++    void *onedram_addr = NULL;
++    int modem_fd = -1;
++    int rc;
++    int i;
++    unsigned int onedram_init;
++    unsigned int onedram_magic;
++    unsigned int onedram_deinit;
++    struct timeval timeout;
++    fd_set fds;
 +
-+	FD_ZERO(&fds);
-+	FD_SET(onedram_fd, &fds);
++    FD_ZERO(&fds);
++    FD_SET(onedram_fd, &fds);
 +
-+	timeout.tv_sec = 15;
-+	timeout.tv_usec = 0;
++    timeout.tv_sec = 15;
++    timeout.tv_usec = 0;
 +
-+	i = 0;
-+	do {
-+		rc = select(onedram_fd + 1, &fds, NULL, NULL, &timeout);
-+		if (rc <= 0) {
-+			ipc_client_log(client, "Reading onedram init failed");
-+			rc = -1;
-+			goto error;
-+		}
++    i = 0;
++    do {
++        rc = select(onedram_fd + 1, &fds, NULL, NULL, &timeout);
++        if (rc <= 0) {
++            ipc_client_log(client, "Reading onedram init failed");
++            rc = -1;
++            goto error;
++        }
 +
-+		rc = read(onedram_fd, &onedram_init, sizeof(onedram_init));
-+		if (rc < (int) sizeof(onedram_init)) {
-+			ipc_client_log(client, "Reading onedram init failed");
-+			rc = -2;
-+			goto error;
-+		}
++        rc = read(onedram_fd, &onedram_init, sizeof(onedram_init));
++        if (rc < (int) sizeof(onedram_init)) {
++            ipc_client_log(client, "Reading onedram init failed");
++            rc = -2;
++            goto error;
++        }
 +
-+		if (i++ > 50) {
-+			ipc_client_log(client, "Reading onedram init failed");
-+			rc = -3;
-+			goto error;
-+		}
-+		// TODO - Make this more likely to work (ie use contains_ack)
-+	} while (onedram_init != GALAXYS4G_ONEDRAM_INIT);
-+	ipc_client_log(client, "Read onedram init (0x%x)", onedram_init);
++        if (i++ > 50) {
++            ipc_client_log(client, "Reading onedram init failed");
++            rc = -3;
++            goto error;
++        }
++    } while (onedram_init != GALAXYS4G_ONEDRAM_INIT);
++    ipc_client_log(client, "Read onedram init (0x%x)", onedram_init);
 +
-+	// Open modem
-+	modem_fd = open(GALAXYS4G_MODEM_IMAGE_DEVICE, O_RDONLY);
-+	if (modem_fd < 0) {
-+		ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_IMAGE_DEVICE);
-+		rc = -4;
-+		goto error;
-+	}
++    /* Open modem.bin */
++    modem_fd = open(GALAXYS4G_MODEM_IMAGE_DEVICE, O_RDONLY);
++    if (modem_fd < 0) {
++        ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_IMAGE_DEVICE);
++        rc = -4;
++        goto error;
++    }
 +
-+	onedram_addr = mmap(NULL, GALAXYS4G_ONEDRAM_MEMORY_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, onedram_fd, 0);
-+	if (onedram_addr == NULL || onedram_addr == (void *) 0xffffffff) {
-+		ipc_client_log(client, "Mapping onedram to memory failed");
-+		rc = -5;
-+		goto error;
-+	}
++    onedram_addr = mmap(NULL, GALAXYS4G_ONEDRAM_MEMORY_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, onedram_fd, 0);
++    if (onedram_addr == NULL || onedram_addr == (void *) 0xffffffff) {
++        ipc_client_log(client, "Mapping onedram to memory failed");
++        rc = -5;
++        goto error;
++    }
 +
-+	lseek(modem_fd, GALAXYS4G_MODEM_HEADER_SIZE, SEEK_SET);
-+	read(modem_fd, onedram_addr, GALAXYS4G_MODEM_SIZE);
++    lseek(modem_fd, GALAXYS4G_MODEM_HEADER_SIZE, SEEK_SET);
++    read(modem_fd, onedram_addr, GALAXYS4G_MODEM_SIZE);
 +
-+	rc = ioctl(onedram_fd, ONEDRAM_GET_ITP, 0);
-+	if (rc < 0) {
-+		rc = -6;
-+		goto error;
-+	}
-+
-+	munmap(onedram_addr, GALAXYS4G_ONEDRAM_MEMORY_SIZE);
-+	onedram_addr = NULL;
++    munmap(onedram_addr, GALAXYS4G_ONEDRAM_MEMORY_SIZE);
++    onedram_addr = NULL;
 +
 +
-+	rc = ioctl(onedram_fd, ONEDRAM_REL_SEM, 0);
-+	if (rc < 0) {
-+		rc = -7;
-+		goto error;
-+	}
++    rc = ioctl(onedram_fd, ONEDRAM_REL_SEM, 0);
++    if (rc < 0) {
++        rc = -7;
++        goto error;
++    }
 +
-+	onedram_magic = GALAXYS4G_ONEDRAM_MAGIC;
-+	rc = write(onedram_fd, &onedram_magic, sizeof(onedram_magic));
-+	if (rc < (int) sizeof(onedram_magic)) {
-+		ipc_client_log(client, "Writing onedram magic failed");
-+		goto error;
-+	}
-+	ipc_client_log(client, "Wrote onedram magic");
++    onedram_magic = GALAXYS4G_ONEDRAM_MAGIC;
++    rc = write(onedram_fd, &onedram_magic, sizeof(onedram_magic));
++    if (rc < (int) sizeof(onedram_magic)) {
++        ipc_client_log(client, "Writing onedram magic failed");
++        goto error;
++    }
++    ipc_client_log(client, "Wrote onedram magic");
 +
-+	FD_ZERO(&fds);
-+	FD_SET(onedram_fd, &fds);
++    FD_ZERO(&fds);
++    FD_SET(onedram_fd, &fds);
 +
-+	timeout.tv_sec = 30;
-+	timeout.tv_usec = 0;
++    timeout.tv_sec = 30;
++    timeout.tv_usec = 0;
 +
-+	i = 0;
-+	do {
-+		rc = select(onedram_fd + 1, &fds, NULL, NULL, &timeout);
-+		if (rc <= 0) {
-+			ipc_client_log(client, "Reading onedram deinit failed");
-+			rc = -8;
-+			goto error;
-+		}
++    i = 0;
++    do {
++        rc = select(onedram_fd + 1, &fds, NULL, NULL, &timeout);
++        if (rc <= 0) {
++            ipc_client_log(client, "Reading onedram deinit failed");
++            rc = -8;
++            goto error;
++        }
 +
-+		rc = read(onedram_fd, &onedram_deinit, sizeof(onedram_deinit));
-+		if (rc < (int) sizeof(onedram_deinit)) {
-+			ipc_client_log(client, "Reading onedram deinit failed");
-+			rc = -9;
-+			goto error;
-+		}
++        rc = read(onedram_fd, &onedram_deinit, sizeof(onedram_deinit));
++        if (rc < (int) sizeof(onedram_deinit)) {
++            ipc_client_log(client, "Reading onedram deinit failed");
++            rc = -9;
++            goto error;
++        }
 +
-+		if (i++ > 50) {
-+			ipc_client_log(client, "Reading onedram deinit failed");
-+			rc = -10;
-+			goto error;
-+		}
-+	} while (onedram_deinit != GALAXYS4G_ONEDRAM_DEINIT);
-+	ipc_client_log(client, "Read onedram deinit (0x%x)", onedram_deinit);
-+	
-+	rc = 0;
-+	
++        if (i++ > 50) {
++            ipc_client_log(client, "Reading onedram deinit failed");
++            rc = -10;
++            goto error;
++        }
++    } while (onedram_deinit != GALAXYS4G_ONEDRAM_DEINIT);
++    ipc_client_log(client, "Read onedram deinit (0x%x)", onedram_deinit);
++    
++    rc = 0;
++    
 +error:
-+	if (modem_fd >= 0)
-+		close(modem_fd);
++    if (modem_fd >= 0)
++        close(modem_fd);
 +
-+	if (onedram_addr != NULL)
-+		munmap(onedram_addr, GALAXYS4G_ONEDRAM_MEMORY_SIZE);
-+	
-+	return rc;
++    if (onedram_addr != NULL)
++        munmap(onedram_addr, GALAXYS4G_ONEDRAM_MEMORY_SIZE);
++    
++    return rc;
 +}
 +
-+int init_serial(struct ipc_client *client, int fast_baud)
++int galaxys4g_configure_serial(int serial_fd, speed_t baud_rate)
 +{
-+	int rc;
-+	int serial_fd;
-+	
-+	// Initialize uart
-+	serial_fd = open(GALAXYS4G_MODEM_SERIAL_DEVICE, O_RDWR);
-+	if (serial_fd < 0) {
-+		ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_SERIAL_DEVICE);
-+		rc = -1;
-+		goto error;
-+	}
++    int ret, ctrl;
++    struct termios termios;
++    ret = ioctl(serial_fd, TCGETS, &termios);
++    if (ret < 0)
++        return -1;
 +
-+	// Set bits
-+	rc = set_serial_bits(serial_fd, fast_baud);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to set bits");
-+		rc = -2;
-+		goto error;
-+	}
-+	ipc_client_log(client, "Set terminal bits");
++    termios.c_cflag = CS8 | CREAD | CLOCAL | baud_rate;
++    termios.c_iflag = IGNBRK;
++    termios.c_oflag = NL0;
++    termios.c_lflag = 0x0;
++    termios.c_cc[VMIN] = 0x1;
++    termios.c_cc[VTIME] = 0x1;
 +
-+	// Set flow control
-+	rc = set_flow_control(serial_fd);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to set flow control");
-+		rc = -3;
-+		goto error;
-+	}
++    ret = ioctl(serial_fd, TCSETS, &termios);
++    if (ret < 0)
++        return -1;
 +
-+	// Set bits again
-+	rc = set_serial_bits(serial_fd, fast_baud);
-+	if (rc < 0) {
-+		ipc_client_log(client, "Failed to set bits again");
-+		rc = -4;
-+		goto error;
-+	}
-+	ipc_client_log(client, "Set terminal bits again");
++    ret = ioctl(serial_fd, TIOCMGET, &ctrl);
++    if (ret < 0)
++        return -1;
 +
-+	return serial_fd;
-+	
-+error:
-+	close(serial_fd);
-+	return rc;
++    ctrl = TIOCM_DTR | TIOCM_RTS | TIOCM_CAR | TIOCM_DSR;
++    ret = ioctl(serial_fd, TIOCMSET, &ctrl);
++    if (ret)
++        return -1;
++
++    return 0;
 +}
 +
-+int connect_ccpu(struct ipc_client *client, int fd)
++int galaxys4g_boot(struct ipc_client *client)
 +{
-+	int i;
-+	int rc;
-+	speed_t baud_rate;
-+	unsigned char *pointer;
-+	fd_set fds;
-+	struct timeval time; 
-+	void *data = NULL;
-+	ipc_client_log(client, "Starting the z-protocol");
-+	usleep(110000);
++    int rc = 0;
++    int onedram_fd = -1;
++    int serial_fd = -1;
++    speed_t baud_rate = 0;
 +
-+	// Allocate a buffer
-+	data = malloc(128);
-+	if (!data) {
-+		ipc_client_log(client, "Failed to allocate buffer");
-+		rc = -1;
-+		goto error;
-+	}
++    rc = network_iface_down(GALAXYS4G_MODEM_IFACE, AF_PHONET, SOCK_DGRAM);
++    if (rc < 0) {
++        ipc_client_log(client, "Turning modem network iface down failed");
++        goto error_opening;
++    }
++    ipc_client_log(client, "Turned modem network iface down");
 +
-+start_z_protocol:
-+	// Flush
-+	rc = ioctl(fd, TCFLSH, TCIOFLUSH);
-+	if (rc < 0)
-+		ipc_client_log(client, "Failed to flush serial device, %d", rc);
++    /* Open onedram, if necessary */
++    onedram_fd = get_onedram_fd();
++    if (onedram_fd < 0) {
++        onedram_fd = open(GALAXYS4G_ONEDRAM_DEVICE, O_RDWR);
++        if (onedram_fd < 0) {
++            ipc_client_log(client, "Failed to open %s", GALAXYS4G_ONEDRAM_DEVICE);
++            goto error_opening;
++        }
++    }
 +
-+	// Write b
-+	rc = write(fd, "b", 1);
-+	if (rc != 1) {
-+		ipc_client_log(client, "Failed to write b");
-+		rc = -2;
-+		goto error;
-+	}
-+	ipc_client_log(client, "Wrote b");
++init_device:
++    /* Flush onedram, just in case */
++    rc = ioctl(onedram_fd, TCFLSH, TCIOFLUSH);
++    ipc_client_log(client, "Flushing onedram returned %d", rc);
++    usleep(100000);
 +
-+	usleep(50000);
++    /* Initialize serial */
++    serial_fd = open(GALAXYS4G_MODEM_SERIAL_DEVICE, O_RDWR);
++    if (serial_fd < 0) {
++        ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_SERIAL_DEVICE);
++        rc = -1;
++        goto error_opening;
++    }
 +
-+	// Clear our buffer
-+	memset(data, 0, 128);
++    /* Configure serial */
++    rc = galaxys4g_configure_serial(serial_fd, B9600);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to configure serial");
++        goto error_opening;
++    }
 +
-+	FD_ZERO(&fds);
-+	FD_SET(fd, &fds);
++    /* Turn off and back on modemctl */
++    rc = galaxys4g_power(GALAXYS4G_POWER_OFF);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to send power off");
++        goto error_opening;
++    }
 +
-+	time.tv_sec = 60;
-+	time.tv_usec = 0;
++    usleep(1000);
 +
-+	rc = select(fd + 1, &fds, NULL, NULL, &time);
-+	if (rc == -1) {
-+		ipc_client_log(client, "Select encountered an error");
-+		rc = -3;
-+		goto error;
-+	}
-+	if (!FD_ISSET(fd, &fds)) {
-+		ipc_client_log(client, "Nothing to read!");
-+		rc = -4;
-+		goto error;
-+	}
++    rc = galaxys4g_power(GALAXYS4G_POWER_ON);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to send power on");
++        goto error_opening;
++    }
 +
-+	rc = read(fd, data, 8);
-+	pointer = (unsigned char*) data;
-+	if (rc == 1) {
-+		// Make sure it's a z
-+		if (pointer[0] == 'z')
-+			goto start_z_protocol;
-+		ipc_client_log(client, "Read unkown byte %s", pointer);
-+		rc = -5;
-+		goto error;
-+	} else if (rc != 8) {
-+		ipc_client_log(client, "Didn't read 8 bytes, read %d bytes of %s instead", rc, pointer);
-+		rc = -6;
-+		goto error;
-+	}
++    /* Tell modem to switch to 115200 baud */
++    rc = m5730_write_baud_change(client, serial_fd);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to change baud rate");
++        goto error_retry;
++    }
 +
-+	// Just some debugging
-+	for (i = 0; i < 8; i++) {
-+		ipc_client_log(client, "Buf[%d] = 0x%x", i, pointer[i]);
-+	}
++    /* Close and re-open serial, setting to 115200 baud */
++    close(serial_fd);
++    serial_fd = open(GALAXYS4G_MODEM_SERIAL_DEVICE, O_RDWR);
++    if (serial_fd < 0) {
++        ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_SERIAL_DEVICE);
++        goto error_retry;
++    }
 +
-+	// Write S4 to change UART speed
-+	rc = write(fd, "S4", 2);
-+	if (rc != 2) {
-+		ipc_client_log(client, "Failed to write S4 to change speed");
-+		goto error;
-+	}
++    rc = galaxys4g_configure_serial(serial_fd, B115200);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to configure serial");
++        goto error_retry;
++    }
 +
-+	rc = ioctl(fd, TCFLSH, TCIOFLUSH);
-+	if (rc < 0)
-+		ipc_client_log(client, "Failed to flush serial");
++    /* Connect to M5730 */
++    rc = m5730_connect_ccpu(client, serial_fd);
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to connect to CCPU, error %d", serial_fd);
++        goto error_retry;
++    }
 +
-+	close(fd);
++    usleep(50000);
 +
-+	// Re-open uart, baud rate should now be 115200
-+	fd = init_serial(client, 1);
-+	if (fd < 0) {
-+		ipc_client_log(client, "Failed to re-open serial");
-+		rc = -7;
-+		goto error;
-+	}
++    /* Load modem.bin part to serial */
++    rc = load_modem_serial(client, serial_fd);
++    if (rc) {
++        if (rc == -5) {
++            ipc_client_log(client, "Ignoring failed read of protrom, assuming modem.bin succesfully uploaded");
++        } else {
++            ipc_client_log(client, "Failed to load modem.bin to serial");
++            goto error_retry;
++        }
++    }
 +
-+	baud_rate = determine_baud_rate(fd);
-+	if (baud_rate != B115200) {
-+		ipc_client_log(client, "Unknown baud rate %lu", baud_rate);
-+		rc = -8;
-+		goto error;
-+	} else {
-+		ipc_client_log(client, "Baud rate is now 115200");
-+	}
++    /* Load second part of modem.bin to onedram */
++    rc = load_modem_onedram(client, onedram_fd);
++    if (rc == -1) {
++        ipc_client_log(client, "Select timed out - retrying CP booting");
++        goto error_retry;
++    } else if (rc) {
++        ipc_client_log(client, "Failed to load modem.bin to onedram");
++        goto error_retry;
++    }
 +
-+	usleep(50000);
++    /* Write c2 to onedram */
++    rc = write(onedram_fd, GALAXYS4G_ONEDRAM_MAGIC_C2, 4);
++    if (rc < 0)
++        goto error_retry;
 +
-+	// Send R to quit z-protocol
-+	rc = write(fd, "R", 1);
-+	if (rc != 1) {
-+		ipc_client_log(client, "Failed to send R to quit z-protocol");
-+		rc = -9;
-+		goto error;
-+	}
-+	ipc_client_log(client, "Sent R to quit z-protocol");
++    rc = 0;
++    goto complete;
 +
-+	// Receive/send protrom
-+	for (i = 0; i < 4; i++) {
-+		rc = receive_protrom(fd, pointer);
-+		if (rc) {
-+			ipc_client_log(client, "Failed to receive protrom, %d", rc);
-+			ipc_client_log(client, "Read the following:");
-+			test_printf(client, pointer, 10);
++error_retry:
++    /* Reset modem */
++    rc = galaxys4g_power(GALAXYS4G_POWER_RESET);
++    if (rc != 0) {
++        ipc_client_log(client, "Failed to reset modem");
++    }
 +
-+			rc = -10;
-+			goto error;
-+		}
++    /* Flush serial */
++    if (serial_fd >= 0) {
++        rc = ioctl(serial_fd, TCFLSH, TCIOFLUSH);
++        if (rc != 0) {
++            ipc_client_log(client, "Failed to flush serial, error %d", rc);
++        }
++        close(serial_fd);
++    }
 +
-+		// Debugging
-+		ipc_client_log(client, "Read the following:");
-+		test_printf(client, pointer, 10);
-+		
-+		rc = create_protrom(fd, i, pointer);
++    goto init_device;
 +
-+		if (rc) {
-+			ipc_client_log(client, "Failed to send protrom, %d", rc);
-+			ipc_client_log(client, "Sent the following:");
-+			test_printf(client, pointer, 14);
++error_opening:
++    rc = -1;
++    if (serial_fd >= 0)
++        close(serial_fd);
 +
-+			rc = -11;
-+			goto error;
-+		}
-+		
-+		usleep(50000);
-+		ipc_client_log(client, "Sent protrom #%d", i);
-+	}
-+	
-+	rc = fd;
-+	goto complete;
-+
-+error:
-+	if (fd >= 0)
-+		close(fd);
++    if (onedram_fd >= 0)
++        close(onedram_fd);
 +
 +complete:
-+	if (data)
-+		free(data);
-+	return rc;
-+}
-+
-+void test_printf(struct ipc_client *client, unsigned char* buf, size_t len)
-+{
-+	size_t i;
-+	for (i = 0; i < len; i++) {
-+		ipc_client_log(client, "0x%x ", buf[i]);
-+	}
-+}
-+
-+int receive_protrom(int fd, unsigned char *data)
-+{
-+	int rc;
-+	fd_set fds;
-+	struct timeval time;
-+
-+	// We read up to 32 all the time 
-+	memset(data, 0, 32);
-+
-+	time.tv_sec = 2;
-+	time.tv_usec = 0;
-+	
-+	FD_ZERO(&fds);
-+	FD_SET(fd, &fds);
-+	
-+	rc = select(fd + 1, &fds, NULL, NULL, &time);
-+	
-+	if (rc == -1) {
-+		// Select returned an error
-+		return -1;
-+	}
-+	
-+	if (FD_ISSET(fd, &fds)) {
-+		// Read
-+		rc = read(fd, data, 32);
-+	} else {
-+		// Timed out
-+		return -3;
-+	}
-+
-+	if (rc < 0)
-+		return -4;
-+
-+	// See if it contains serial_ack
-+	return contains_ack(data, rc);
-+}
-+
-+int contains_ack(unsigned char* data, int len)
-+{
-+	int i;
-+	int rc;
-+	int ack_len = strlen(serial_ack);
-+
-+	for (i = 0; i <= len - ack_len; i++) {
-+		rc = strncmp((char *) (data + i * sizeof(char)), serial_ack, ack_len);
-+		if (rc == 0)
-+			return 0;
-+	}
-+
-+	// If we got here, we never found it
-+	return -5;
-+}
-+
-+int create_protrom(int fd, int n, unsigned char *buf)
-+{
-+	int rc;
-+	uint16_t xmodem_crc;
-+	size_t header_len = strlen(serial_ack);
-+	size_t protrom_len = sizeof(send_protroms[n]);
-+	
-+	size_t total_len = header_len + 3 + protrom_len + 2;
-+
-+	memset(buf, 0, total_len);
-+
-+	// Copy header
-+	memcpy(buf, serial_ack, header_len);
-+
-+	// Copy length
-+	memcpy(buf + (header_len + 1) * sizeof(char), &protrom_len, 1);
-+
-+	// Copy payload
-+	memcpy(buf + (header_len + 3) * sizeof(char), send_protroms[n], protrom_len);
-+
-+	// Calculate and copy CRC
-+	xmodem_crc = crc_xmodem(buf, total_len - 2);
-+	memcpy(buf + (total_len - 2) * sizeof(char), &xmodem_crc, sizeof(xmodem_crc));
-+
-+	rc = write(fd, buf, total_len);
-+	return rc < 0;
-+}
-+
-+int set_serial_bits(int fd, int fast_baud)
-+{
-+	int ret;
-+	struct termios termios;
-+	ret = ioctl(fd, TCGETS, &termios);
-+	if (ret < 0) {
-+		return -1;
-+	}
-+
-+	// Set bits
-+	if (fast_baud) {
-+		// Second pass, need to adjust c_cflag
-+		termios.c_cflag = 0x18b2; // TODO - What is this?
-+	} else {
-+		// Make sure our baud rate is low
-+		termios.c_cflag = 0x8bd; // TODO - What is this?
-+	}
-+	termios.c_iflag = IGNBRK;
-+	termios.c_oflag = NL0;
-+	termios.c_lflag = 0x0;
-+	termios.c_cc[VMIN] = 0x1;
-+	termios.c_cc[VTIME] = 0x1;
-+	
-+	return ioctl(fd, TCSETS, &termios);
-+}
-+
-+int set_flow_control(int fd)
-+{
-+	int ctrl;
-+	if (ioctl(fd, TIOCMGET, &ctrl) < 0) {
-+		return -1;
-+	}
-+
-+	ctrl = TIOCM_DTR|TIOCM_RTS|TIOCM_CAR|TIOCM_DSR;
-+	if (ioctl(fd, TIOCMSET, &ctrl) < 0) {
-+		return -1;
-+	}
-+
-+	return 0;
-+}
-+
-+speed_t determine_baud_rate(int fd)
-+{
-+	struct termios termios;
-+	if (tcgetattr(fd, &termios) < 0) {
-+		return -1;
-+	}
-+
-+	return cfgetispeed(&termios);
++    return rc;
 +}
 +
 +int get_onedram_fd()
 +{
-+	int fd = -1;
-+	DIR *d = opendir("/proc/self/fd");
-+	if (d) {
-+		struct dirent *dirent;
++    int fd = -1;
++    DIR *d = opendir("/proc/self/fd");
++    if (d) {
++        struct dirent *dirent;
 +
-+		while (dirent = readdir(d), dirent != NULL) {
-+			if (isdigit(dirent->d_name[0])) {
-+				char path[NAME_MAX + 1];
-+				char buf[NAME_MAX + 1];
-+				snprintf(path, sizeof(path), "/proc/self/fd/%s",
-+						 dirent->d_name);
-+				ssize_t bytes = readlink(path, buf, sizeof(buf));
-+				buf[bytes] = '\0';
-+				if (strcmp(GALAXYS4G_ONEDRAM_DEVICE, buf) == 0) {
-+					fd = atoi(dirent->d_name);
-+					break;
-+				}
-+			}
-+		}
-+		closedir(d);
-+	}
++        while (dirent = readdir(d), dirent != NULL) {
++            if (isdigit(dirent->d_name[0])) {
++                char path[NAME_MAX + 1];
++                char buf[NAME_MAX + 1];
++                snprintf(path, sizeof(path), "/proc/self/fd/%s",
++                         dirent->d_name);
++                ssize_t bytes = readlink(path, buf, sizeof(buf));
++                buf[bytes] = '\0';
++                if (strcmp(GALAXYS4G_ONEDRAM_DEVICE, buf) == 0) {
++                    fd = atoi(dirent->d_name);
++                    break;
++                }
++            }
++        }
++        closedir(d);
++    }
 +
-+	return fd;
++    return fd;
 +}
 +
 +int galaxys4g_fmt_send(struct ipc_client *client, struct ipc_message *message)
 +{
-+	struct ipc_fmt_header header;
-+	void *buffer;
-+	size_t length;
-+	size_t count = 0;
-+	size_t chunk;
-+	unsigned char *p;
-+	int rc;
++    struct ipc_fmt_header header;
++    void *buffer;
++    size_t length;
++    size_t count = 0;
++    size_t chunk;
++    unsigned char *p;
++    int rc;
 +
-+	if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-+		return -1;
++    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
++        return -1;
 +
-+	ipc_fmt_header_setup(&header, message);
++    ipc_fmt_header_setup(&header, message);
 +
-+	length = header.length;
-+	buffer = calloc(1, length);
++    length = header.length;
++    buffer = calloc(1, length);
 +
-+	memcpy(buffer, &header, sizeof(struct ipc_fmt_header));
++    memcpy(buffer, &header, sizeof(struct ipc_fmt_header));
 +
-+	if (message->data != NULL && message->size > 0) {
-+		p = (unsigned char *) buffer + sizeof(header);
-+		memcpy(p, message->data, message->size);
-+	}
++    if (message->data != NULL && message->size > 0) {
++        p = (unsigned char *) buffer + sizeof(header);
++        memcpy(p, message->data, message->size);
++    }
 +
-+	ipc_client_log_send(client, message, __func__);
++    ipc_client_log_send(client, message, __func__);
 +
-+	p = (unsigned char *) buffer;
++    p = (unsigned char *) buffer;
 +
-+	while (count < length) {
-+		chunk = length - count < GALAXYS4G_BUFFER_LENGTH ? length - count : GALAXYS4G_BUFFER_LENGTH;
++    while (count < length) {
++        chunk = length - count < GALAXYS4G_BUFFER_LENGTH ? length - count : GALAXYS4G_BUFFER_LENGTH;
 +
-+		rc = client->handlers->write(client->handlers->transport_data, p, chunk);
-+		if (rc < 0) {
-+			ipc_client_log(client, "Writing FMT data failed");
-+			goto error;
-+		}
++        rc = client->handlers->write(client->handlers->transport_data, p, chunk);
++        if (rc < 0) {
++            ipc_client_log(client, "Writing FMT data failed");
++            goto error;
++        }
 +
-+		count += rc;
-+		p += rc;
-+	}
++        count += rc;
++        p += rc;
++    }
 +
-+	rc = 0;
-+	goto complete;
++    rc = 0;
++    goto complete;
 +
 +error:
-+	rc = -1;
++    rc = -1;
 +
 +complete:
-+	if (buffer != NULL)
-+		free(buffer);
++    if (buffer != NULL)
++        free(buffer);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_fmt_recv(struct ipc_client *client, struct ipc_message *message)
 +{
-+	struct ipc_fmt_header *header;
-+	void *buffer;
-+	size_t length;
-+	size_t count = 0;
-+	size_t chunk;
-+	unsigned char *p;
-+	int rc;
++    struct ipc_fmt_header *header;
++    void *buffer;
++    size_t length;
++    size_t count = 0;
++    size_t chunk;
++    unsigned char *p;
++    int rc;
 +
-+	if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-+		return -1;
++    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
++        return -1;
 +
-+	length = GALAXYS4G_BUFFER_LENGTH;
-+	buffer = calloc(1, length);
++    length = GALAXYS4G_BUFFER_LENGTH;
++    buffer = calloc(1, length);
 +
-+	rc = client->handlers->read(client->handlers->transport_data, buffer, length);
-+	if (rc < (int) sizeof(struct ipc_fmt_header)) {
-+		ipc_client_log(client, "Reading FMT header failed");
-+		goto error;
-+	}
++    rc = client->handlers->read(client->handlers->transport_data, buffer, length);
++    if (rc < (int) sizeof(struct ipc_fmt_header)) {
++        ipc_client_log(client, "Reading FMT header failed");
++        goto error;
++    }
 +
-+	header = (struct ipc_fmt_header *) buffer;
++    header = (struct ipc_fmt_header *) buffer;
 +
-+	ipc_fmt_message_setup(header, message);
++    ipc_fmt_message_setup(header, message);
 +
-+	length = header->length - sizeof(struct ipc_fmt_header);
-+	if (length > 0) {
-+		message->size = length;
-+		message->data = calloc(1, length);
++    length = header->length - sizeof(struct ipc_fmt_header);
++    if (length > 0) {
++        message->size = length;
++        message->data = calloc(1, length);
 +
-+		count = rc - sizeof(struct ipc_fmt_header);
-+		if (count > 0) {
-+			p = (unsigned char *) buffer + sizeof(struct ipc_fmt_header);
-+			memcpy(message->data, p, count);
-+		}
-+	}
++        count = rc - sizeof(struct ipc_fmt_header);
++        if (count > 0) {
++            p = (unsigned char *) buffer + sizeof(struct ipc_fmt_header);
++            memcpy(message->data, p, count);
++        }
++    }
 +
-+	p = (unsigned char *) message->data + count;
++    p = (unsigned char *) message->data + count;
 +
-+	while (count < length) {
-+		chunk = length - count < GALAXYS4G_BUFFER_LENGTH ? length - count : GALAXYS4G_BUFFER_LENGTH;
++    while (count < length) {
++        chunk = length - count < GALAXYS4G_BUFFER_LENGTH ? length - count : GALAXYS4G_BUFFER_LENGTH;
 +
-+		rc = client->handlers->read(client->handlers->transport_data, p, chunk);
-+		if (rc < 0) {
-+			ipc_client_log(client, "Reading FMT data failed");
-+			goto error;
-+		}
++        rc = client->handlers->read(client->handlers->transport_data, p, chunk);
++        if (rc < 0) {
++            ipc_client_log(client, "Reading FMT data failed");
++            goto error;
++        }
 +
-+		count += rc;
-+		p += rc;
-+	}
++        count += rc;
++        p += rc;
++    }
 +
-+	ipc_client_log_recv(client, message, __func__);
++    ipc_client_log_recv(client, message, __func__);
 +
-+	rc = 0;
-+	goto complete;
++    rc = 0;
++    goto complete;
 +
 +error:
-+	rc = -1;
++    rc = -1;
 +
 +complete:
-+	if (buffer != NULL)
-+		free(buffer);
++    if (buffer != NULL)
++        free(buffer);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_rfs_send(struct ipc_client *client, struct ipc_message *message)
 +{
-+	struct ipc_rfs_header header;
-+	void *buffer;
-+	size_t length;
-+	size_t count = 0;
-+	size_t chunk;
-+	unsigned char *p;
-+	int rc;
++    struct ipc_rfs_header header;
++    void *buffer;
++    size_t length;
++    size_t count = 0;
++    size_t chunk;
++    unsigned char *p;
++    int rc;
 +
-+	if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-+		return -1;
++    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
++        return -1;
 +
-+	ipc_rfs_header_setup(&header, message);
++    ipc_rfs_header_setup(&header, message);
 +
-+	length = header.length;
-+	buffer = calloc(1, length);
++    length = header.length;
++    buffer = calloc(1, length);
 +
-+	memcpy(buffer, &header, sizeof(header));
-+	if (message->data != NULL && message->size > 0) {
-+		p = (unsigned char *) buffer + sizeof(header);
-+		memcpy(p, message->data, message->size);
-+	}
++    memcpy(buffer, &header, sizeof(header));
++    if (message->data != NULL && message->size > 0) {
++        p = (unsigned char *) buffer + sizeof(header);
++        memcpy(p, message->data, message->size);
++    }
 +
-+	ipc_client_log_send(client, message, __func__);
++    ipc_client_log_send(client, message, __func__);
 +
-+	p = (unsigned char *) buffer;
++    p = (unsigned char *) buffer;
 +
-+	while (count < length) {
-+		chunk = length - count < GALAXYS4G_SND_BUFFER_LENGTH ? length - count : GALAXYS4G_SND_BUFFER_LENGTH;
++    while (count < length) {
++        chunk = length - count < GALAXYS4G_SND_BUFFER_LENGTH ? length - count : GALAXYS4G_SND_BUFFER_LENGTH;
 +
-+		rc = client->handlers->write(client->handlers->transport_data, p, chunk);
-+		if (rc < 0) {
-+			ipc_client_log(client, "Writing RFS data failed");
-+			goto error;
-+		}
++        rc = client->handlers->write(client->handlers->transport_data, p, chunk);
++        if (rc < 0) {
++            ipc_client_log(client, "Writing RFS data failed");
++            goto error;
++        }
 +
-+		count += rc;
-+		p += rc;
-+	}
++        count += rc;
++        p += rc;
++    }
 +
-+	rc = 0;
-+	goto complete;
++    rc = 0;
++    goto complete;
 +
 +error:
-+	rc = -1;
++    rc = -1;
 +
 +complete:
-+	if (buffer != NULL)
-+		free(buffer);
++    if (buffer != NULL)
++        free(buffer);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_rfs_recv(struct ipc_client *client, struct ipc_message *message)
 +{
-+	struct ipc_rfs_header *header;
-+	void *buffer;
-+	size_t length;
-+	size_t count = 0;
-+	size_t chunk;
-+	unsigned char *p;
-+	int rc;
++    struct ipc_rfs_header *header;
++    void *buffer;
++    size_t length;
++    size_t count = 0;
++    size_t chunk;
++    unsigned char *p;
++    int rc;
 +
-+	if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-+		return -1;
++    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
++        return -1;
 +
-+	length = GALAXYS4G_RCV_BUFFER_LENGTH;
-+	buffer = calloc(1, length);
++    length = GALAXYS4G_RCV_BUFFER_LENGTH;
++    buffer = calloc(1, length);
 +
-+	rc = client->handlers->read(client->handlers->transport_data, buffer, length);
-+	if (rc < (int) sizeof(struct ipc_rfs_header)) {
-+		ipc_client_log(client, "Reading RFS header failed");
-+		goto error;
-+	}
++    rc = client->handlers->read(client->handlers->transport_data, buffer, length);
++    if (rc < (int) sizeof(struct ipc_rfs_header)) {
++        ipc_client_log(client, "Reading RFS header failed");
++        goto error;
++    }
 +
-+	header = (struct ipc_rfs_header *) buffer;
-+	if (header->length > GALAXYS4G_DATA_SIZE_LIMIT) {
-+		ipc_client_log(client, "Invalid RFS header length: %u", header->length);
-+		goto error;
-+	}
++    header = (struct ipc_rfs_header *) buffer;
++    if (header->length > GALAXYS4G_DATA_SIZE_LIMIT) {
++        ipc_client_log(client, "Invalid RFS header length: %u", header->length);
++        goto error;
++    }
 +
-+	ipc_rfs_message_setup(header, message);
++    ipc_rfs_message_setup(header, message);
 +
-+	length = header->length - sizeof(struct ipc_rfs_header);
-+	if (length > 0) {
-+		message->size = length;
-+		message->data = calloc(1, length);
++    length = header->length - sizeof(struct ipc_rfs_header);
++    if (length > 0) {
++        message->size = length;
++        message->data = calloc(1, length);
 +
-+		count = rc - sizeof(struct ipc_rfs_header);
-+		if (count > 0) {
-+			p = (unsigned char *) buffer + sizeof(struct ipc_rfs_header);
-+			memcpy(message->data, p, count);
-+		}
-+	}
++        count = rc - sizeof(struct ipc_rfs_header);
++        if (count > 0) {
++            p = (unsigned char *) buffer + sizeof(struct ipc_rfs_header);
++            memcpy(message->data, p, count);
++        }
++    }
 +
-+	p = (unsigned char *) message->data + count;
++    p = (unsigned char *) message->data + count;
 +
-+	while (count < length) {
-+		chunk = length - count < GALAXYS4G_RCV_BUFFER_LENGTH ? length - count : GALAXYS4G_RCV_BUFFER_LENGTH;
++    while (count < length) {
++        chunk = length - count < GALAXYS4G_RCV_BUFFER_LENGTH ? length - count : GALAXYS4G_RCV_BUFFER_LENGTH;
 +
-+		rc = client->handlers->read(client->handlers->transport_data, p, chunk);
-+		if (rc < 0) {
-+			ipc_client_log(client, "Reading RFS data failed");
-+			goto error;
-+		}
++        rc = client->handlers->read(client->handlers->transport_data, p, chunk);
++        if (rc < 0) {
++            ipc_client_log(client, "Reading RFS data failed");
++            goto error;
++        }
 +
-+		count += rc;
-+		p += rc;
-+	}
++        count += rc;
++        p += rc;
++    }
 +
-+	ipc_client_log_recv(client, message, __func__);
++    ipc_client_log_recv(client, message, __func__);
 +
-+	rc = 0;
-+	goto complete;
++    rc = 0;
++    goto complete;
 +
 +error:
-+	rc = -1;
++    rc = -1;
 +
 +complete:
-+	if (buffer != NULL)
-+		free(buffer);
++    if (buffer != NULL)
++        free(buffer);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_open(void *data, int type)
 +{
-+	struct galaxys4g_transport_data *transport_data;
-+	struct sockaddr_pn *spn;
-+	struct ifreq ifr;
-+	int reuse;
-+	int fd;
-+	int rc;
-+	int onedram_fd;
++    struct galaxys4g_transport_data *transport_data;
++    struct sockaddr_pn *spn;
++    struct ifreq ifr;
++    int reuse;
++    int fd;
++    int rc;
++    int onedram_fd;
 +
-+	if (data == NULL)
-+		return -1;
++    if (data == NULL)
++        return -1;
 +
-+	transport_data = (struct galaxys4g_transport_data *) data;
-+	memset(data, 0, sizeof(struct galaxys4g_transport_data));
++    transport_data = (struct galaxys4g_transport_data *) data;
++    memset(data, 0, sizeof(struct galaxys4g_transport_data));
 +
-+	spn = &transport_data->spn;
++    spn = &transport_data->spn;
 +
-+	memset(&ifr, 0, sizeof(ifr));
-+	strncpy(ifr.ifr_name, GALAXYS4G_MODEM_IFACE, IFNAMSIZ);
++    memset(&ifr, 0, sizeof(ifr));
++    strncpy(ifr.ifr_name, GALAXYS4G_MODEM_IFACE, IFNAMSIZ);
 +
-+	spn->spn_family = AF_PHONET;
-+	spn->spn_dev = 0;
++    spn->spn_family = AF_PHONET;
++    spn->spn_dev = 0;
 +
-+	switch (type) {
-+	case IPC_CLIENT_TYPE_FMT:
-+		spn->spn_resource = GALAXYS4G_MODEM_FMT_SPN;
-+		break;
-+	case IPC_CLIENT_TYPE_RFS:
-+		spn->spn_resource = GALAXYS4G_MODEM_RFS_SPN;
-+		break;
-+	default:
-+		break;
-+	}
++    switch (type) {
++    case IPC_CLIENT_TYPE_FMT:
++        spn->spn_resource = GALAXYS4G_MODEM_FMT_SPN;
++        break;
++    case IPC_CLIENT_TYPE_RFS:
++        spn->spn_resource = GALAXYS4G_MODEM_RFS_SPN;
++        break;
++    default:
++        break;
++    }
 +
-+	fd = socket(AF_PHONET, SOCK_DGRAM, 0);
-+	if (fd < 0)
-+		return -1;
++    fd = socket(AF_PHONET, SOCK_DGRAM, 0);
++    if (fd < 0)
++        return -1;
 +
-+	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, IFNAMSIZ);
-+	if (rc < 0)
-+		return -1;
++    rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, IFNAMSIZ);
++    if (rc < 0)
++        return -1;
 +
-+	reuse = 1;
-+	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-+	if (rc < 0)
-+		return -1;
++    reuse = 1;
++    rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
++    if (rc < 0)
++        return -1;
 +
-+	rc = bind(fd, (const struct sockaddr *) spn, sizeof(struct sockaddr_pn));
-+	if (rc < 0)
-+		return -1;
++    rc = bind(fd, (const struct sockaddr *) spn, sizeof(struct sockaddr_pn));
++    if (rc < 0)
++        return -1;
 +
-+	transport_data->fd = fd;
++    transport_data->fd = fd;
 +
-+	if (type == IPC_CLIENT_TYPE_RFS) {
-+		rc = network_iface_up(GALAXYS4G_MODEM_IFACE, AF_PHONET, SOCK_DGRAM);
-+		if (rc < 0)
-+			return -1;
++    if (type == IPC_CLIENT_TYPE_RFS) {
++        rc = network_iface_up(GALAXYS4G_MODEM_IFACE, AF_PHONET, SOCK_DGRAM);
++        if (rc < 0)
++            return -1;
++    }
 +
-+		// Write c2 to onedram
-+		onedram_fd = get_onedram_fd();
-+		if (onedram_fd < 0)
-+			return -1;
-+
-+		rc = write(onedram_fd, GALAXYS4G_ONEDRAM_MAGIC_C2, 4);
-+		if (rc < 0)
-+			return -1;
-+
-+		rc = close(onedram_fd);
-+		if (rc < 0)
-+			return -1;
-+	}
-+
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_close(void *data)
 +{
-+	struct galaxys4g_transport_data *transport_data;
-+	int fd;
++    struct galaxys4g_transport_data *transport_data;
++    int fd;
 +
-+	if (data == NULL)
-+		return -1;
++    if (data == NULL)
++        return -1;
 +
-+	transport_data = (struct galaxys4g_transport_data *) data;
++    transport_data = (struct galaxys4g_transport_data *) data;
 +
-+	fd = transport_data->fd;
-+	if (fd < 0)
-+		return -1;
++    fd = transport_data->fd;
++    if (fd < 0)
++        return -1;
 +
-+	transport_data->fd = -1;
-+	close(fd);
++    transport_data->fd = -1;
++    close(fd);
 +
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_read(void *data, void *buffer, size_t length)
 +{
-+	struct galaxys4g_transport_data *transport_data;
-+	int spn_size;
-+	int fd;
-+	int rc;
++    struct galaxys4g_transport_data *transport_data;
++    int spn_size;
++    int fd;
++    int rc;
 +
-+	if (data == NULL || buffer == NULL || length == 0)
-+		return -1;
++    if (data == NULL || buffer == NULL || length == 0)
++        return -1;
 +
-+	transport_data = (struct galaxys4g_transport_data *) data;
++    transport_data = (struct galaxys4g_transport_data *) data;
 +
-+	fd = transport_data->fd;
-+	if (fd < 0)
-+		return -1;
++    fd = transport_data->fd;
++    if (fd < 0)
++        return -1;
 +
-+	spn_size = sizeof(struct sockaddr_pn);
++    spn_size = sizeof(struct sockaddr_pn);
 +
-+	rc = recvfrom(fd, buffer, length, 0, (struct sockaddr *) &transport_data->spn, &spn_size);
++    rc = recvfrom(fd, buffer, length, 0, (struct sockaddr *) &transport_data->spn, &spn_size);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_write(void *data, const void *buffer, size_t length)
 +{
-+	struct galaxys4g_transport_data *transport_data;
-+	int spn_size;
-+	int fd;
-+	int rc;
++    struct galaxys4g_transport_data *transport_data;
++    int spn_size;
++    int fd;
++    int rc;
 +
-+	if (data == NULL || buffer == NULL || length == 0)
-+		return -1;
++    if (data == NULL || buffer == NULL || length == 0)
++        return -1;
 +
-+	transport_data = (struct galaxys4g_transport_data *) data;
++    transport_data = (struct galaxys4g_transport_data *) data;
 +
-+	fd = transport_data->fd;
-+	if (fd < 0)
-+		return -1;
++    fd = transport_data->fd;
++    if (fd < 0)
++        return -1;
 +
-+	spn_size = sizeof(struct sockaddr_pn);
++    spn_size = sizeof(struct sockaddr_pn);
 +
-+	rc = sendto(fd, buffer, length, 0, (const struct sockaddr *) &transport_data->spn, spn_size);
++    rc = sendto(fd, buffer, length, 0, (const struct sockaddr *) &transport_data->spn, spn_size);
 +
-+	return rc;
++    return rc;
 +}
 +
 +int galaxys4g_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
 +{
-+	struct galaxys4g_transport_data *transport_data;
-+	fd_set set;
-+	int fd;
-+	int fd_max;
-+	unsigned int i;
-+	unsigned int count;
-+	int rc;
++    struct galaxys4g_transport_data *transport_data;
++    fd_set set;
++    int fd;
++    int fd_max;
++    unsigned int i;
++    unsigned int count;
++    int rc;
 +
-+	if (data == NULL)
-+		return -1;
++    if (data == NULL)
++        return -1;
 +
-+	transport_data = (struct galaxys4g_transport_data *) data;
++    transport_data = (struct galaxys4g_transport_data *) data;
 +
-+	fd = transport_data->fd;
-+	if (fd < 0)
-+		return -1;
++    fd = transport_data->fd;
++    if (fd < 0)
++        return -1;
 +
-+	FD_ZERO(&set);
-+	FD_SET(fd, &set);
++    FD_ZERO(&set);
++    FD_SET(fd, &set);
 +
-+	fd_max = fd;
++    fd_max = fd;
 +
-+	if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-+		for (i = 0; i < fds->count; i++) {
-+			if (fds->fds[i] >= 0) {
-+				FD_SET(fds->fds[i], &set);
++    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
++        for (i = 0; i < fds->count; i++) {
++            if (fds->fds[i] >= 0) {
++                FD_SET(fds->fds[i], &set);
 +
-+				if (fds->fds[i] > fd_max)
-+					fd_max = fds->fds[i];
-+			}
-+		}
-+	}
++                if (fds->fds[i] > fd_max)
++                    fd_max = fds->fds[i];
++            }
++        }
++    }
 +
-+	rc = select(fd_max + 1, &set, NULL, NULL, timeout);
++    rc = select(fd_max + 1, &set, NULL, NULL, timeout);
 +
-+	if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-+		count = fds->count;
++    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
++        count = fds->count;
 +
-+		for (i = 0; i < fds->count; i++) {
-+			if (!FD_ISSET(fds->fds[i], &set)) {
-+				fds->fds[i] = -1;
-+				count--;
-+			}
-+		}
++        for (i = 0; i < fds->count; i++) {
++            if (!FD_ISSET(fds->fds[i], &set)) {
++                fds->fds[i] = -1;
++                count--;
++            }
++        }
 +
-+		fds->count = count;
-+	}
++        fds->count = count;
++    }
 +
-+	return rc;
++    return rc;
 +}
 +
 +
 +int galaxys4g_power(const char* cmd)
 +{
-+	int rc;
++    int rc;
 +
-+	rc = sysfs_string_write(GALAXYS4G_MODEMCTL_CONTROL_SYSFS, cmd, strlen(cmd));
-+	if (rc < 0)
-+		return -1;
++    rc = sysfs_string_write(GALAXYS4G_MODEMCTL_CONTROL_SYSFS, cmd, strlen(cmd));
++    if (rc < 0)
++        return -1;
 +
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_power_on(void *data)
 +{
-+	// Dummy, real init is done in boot
-+	return 0;
++    /* Dummy, real init is done in boot */
++    return 0;
 +}
 +
 +int galaxys4g_power_off(void *data)
 +{
-+	return galaxys4g_power(GALAXYS4G_POWER_OFF);
++    return galaxys4g_power(GALAXYS4G_POWER_OFF);
 +}
 +
 +int galaxys4g_data_create(void **transport_data, void **power_data,
-+	void **gprs_data)
++    void **gprs_data)
 +{
-+	if (transport_data == NULL)
-+		return -1;
++    if (transport_data == NULL)
++        return -1;
 +
-+	*transport_data = calloc(1, sizeof(struct galaxys4g_transport_data));
++    *transport_data = calloc(1, sizeof(struct galaxys4g_transport_data));
 +
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_data_destroy(void *transport_data, void *power_data, void *gprs_data)
 +{
-+	if (transport_data == NULL)
-+		return -1;
++    if (transport_data == NULL)
++        return -1;
 +
-+	free(transport_data);
++    free(transport_data);
 +
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_gprs_activate(void *data, unsigned int cid)
 +{
-+	int rc;
++    int rc;
 +
-+	rc = sysfs_value_write(GALAXYS4G_MODEM_PDP_ACTIVATE_SYSFS, cid);
-+	if (rc < 0)
-+		return -1;
++    rc = sysfs_value_write(GALAXYS4G_MODEM_PDP_ACTIVATE_SYSFS, cid);
++    if (rc < 0)
++        return -1;
 +
-+	return 0;
++    return 0;
 +}
 +
 +int galaxys4g_gprs_deactivate(void *data, unsigned int cid)
 +{
-+	int rc;
++    int rc;
 +
-+	rc = sysfs_value_write(GALAXYS4G_MODEM_PDP_DEACTIVATE_SYSFS, cid);
-+	if (rc < 0)
-+		return -1;
++    rc = sysfs_value_write(GALAXYS4G_MODEM_PDP_DEACTIVATE_SYSFS, cid);
++    if (rc < 0)
++        return -1;
 +
-+	return 0;
++    return 0;
 +}
 +
 +char *galaxys4g_gprs_get_iface(unsigned int cid)
 +{
-+	char *iface = NULL;
++    char *iface = NULL;
 +
-+	if (cid > GALAXYS4G_GPRS_IFACE_COUNT)
-+		return NULL;
++    if (cid > GALAXYS4G_GPRS_IFACE_COUNT)
++        return NULL;
 +
-+	asprintf(&iface, "%s%d", GALAXYS4G_GPRS_IFACE_PREFIX, cid - 1);
++    asprintf(&iface, "%s%d", GALAXYS4G_GPRS_IFACE_PREFIX, cid - 1);
 +
-+	return iface;
++    return iface;
 +}
 +
 +int galaxys4g_gprs_get_capabilities(struct ipc_client_gprs_capabilities *capabilities)
 +{
-+	if (capabilities == NULL)
-+		return -1;
++    if (capabilities == NULL)
++        return -1;
 +
-+	capabilities->cid_count = GALAXYS4G_GPRS_IFACE_COUNT;
++    capabilities->cid_count = GALAXYS4G_GPRS_IFACE_COUNT;
 +
-+	return 0;
++    return 0;
 +}
 +
 +struct ipc_client_ops galaxys4g_fmt_ops = {
-+	.boot = galaxys4g_boot,
-+	.send = galaxys4g_fmt_send,
-+	.recv = galaxys4g_fmt_recv,
++    .boot = galaxys4g_boot,
++    .send = galaxys4g_fmt_send,
++    .recv = galaxys4g_fmt_recv,
 +};
 +
 +struct ipc_client_ops galaxys4g_rfs_ops = {
-+	.boot = NULL,
-+	.send = galaxys4g_rfs_send,
-+	.recv = galaxys4g_rfs_recv,
++    .boot = NULL,
++    .send = galaxys4g_rfs_send,
++    .recv = galaxys4g_rfs_recv,
 +};
 +
 +struct ipc_client_handlers galaxys4g_handlers = {
-+	.open = galaxys4g_open,
-+	.close = galaxys4g_close,
-+	.read = galaxys4g_read,
-+	.write = galaxys4g_write,
-+	.poll = galaxys4g_poll,
-+	.transport_data = NULL,
-+	.power_on = galaxys4g_power_on,
-+	.power_off = galaxys4g_power_off,
-+	.power_data = NULL,
-+	.gprs_activate = galaxys4g_gprs_activate,
-+	.gprs_deactivate = galaxys4g_gprs_deactivate,
-+	.gprs_data = NULL,
-+	.data_create = galaxys4g_data_create,
-+	.data_destroy = galaxys4g_data_destroy,
++    .open = galaxys4g_open,
++    .close = galaxys4g_close,
++    .read = galaxys4g_read,
++    .write = galaxys4g_write,
++    .poll = galaxys4g_poll,
++    .transport_data = NULL,
++    .power_on = galaxys4g_power_on,
++    .power_off = galaxys4g_power_off,
++    .power_data = NULL,
++    .gprs_activate = galaxys4g_gprs_activate,
++    .gprs_deactivate = galaxys4g_gprs_deactivate,
++    .gprs_data = NULL,
++    .data_create = galaxys4g_data_create,
++    .data_destroy = galaxys4g_data_destroy,
 +};
 +
 +struct ipc_client_gprs_specs galaxys4g_gprs_specs = {
-+	.gprs_get_iface = galaxys4g_gprs_get_iface,
-+	.gprs_get_capabilities = galaxys4g_gprs_get_capabilities,
++    .gprs_get_iface = galaxys4g_gprs_get_iface,
++    .gprs_get_capabilities = galaxys4g_gprs_get_capabilities,
 +};
 +
 +struct ipc_client_nv_data_specs galaxys4g_nv_data_specs = {
-+	.efs_root = GALAXYS4G_EFS_ROOT,
-+	.nv_data_path = GALAXYS4G_NV_DATA_PATH,
-+	// Stock doesn't use the md5, but we will here
-+	.nv_data_md5_path = GALAXYS4G_NV_DATA_MD5_PATH,
-+	.nv_data_backup_path = GALAXYS4G_NV_DATA_BACKUP_PATH,
-+	.nv_data_backup_md5_path = GALAXYS4G_NV_DATA_BACKUP_MD5_PATH,
-+	.nv_data_secret = XMM616_NV_DATA_SECRET,
-+	.nv_data_size = XMM616_NV_DATA_SIZE,
-+	.nv_data_chunk_size = XMM616_NV_DATA_CHUNK_SIZE,
++    .efs_root = GALAXYS4G_EFS_ROOT,
++    .nv_data_path = GALAXYS4G_NV_DATA_PATH,
++    /* Stock has md5 disabled, but we will use it here regardless */
++    .nv_data_md5_path = GALAXYS4G_NV_DATA_MD5_PATH,
++    .nv_data_backup_path = GALAXYS4G_NV_DATA_BACKUP_PATH,
++    .nv_data_backup_md5_path = GALAXYS4G_NV_DATA_BACKUP_MD5_PATH,
++    .nv_data_secret = XMM616_NV_DATA_SECRET,
++    .nv_data_size = XMM616_NV_DATA_SIZE,
++    .nv_data_chunk_size = XMM616_NV_DATA_CHUNK_SIZE,
 +};
 +
 +// vim:ts=4:sw=4:expandtab
 diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.h b/samsung-ipc/devices/galaxys4g/galaxys4g.h
 new file mode 100644
-index 0000000..830c591
+index 0000000..dc5b2db
 --- /dev/null
 +++ b/samsung-ipc/devices/galaxys4g/galaxys4g.h
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,98 @@
 +/*
 + * This file is part of libsamsung-ipc.
 + *
@@ -2038,8 +2015,6 @@ index 0000000..830c591
 +
 +#ifndef __GALAXYS4G_H__
 +#define __GALAXYS4G_H__
-+
-+
 +
 +#define GALAXYS4G_ONEDRAM_DEVICE                    "/dev/onedram"
 +#define GALAXYS4G_ONEDRAM_MAGIC_C2                  "\xc2\x00\x00\x00"
@@ -2068,13 +2043,11 @@ index 0000000..830c591
 +#define GALAXYS4G_GPRS_IFACE_PREFIX                 "pdp"
 +#define GALAXYS4G_GPRS_IFACE_COUNT                  3
 +
-+#define GALAXYS4G_WAKE_LOCK_NAME                    "STE-interface"
-+
 +#define GALAXYS4G_POWER_ON                          "on"
 +#define GALAXYS4G_POWER_OFF                         "off"
 +#define GALAXYS4G_POWER_RESET                       "reset"
 +
-+// nv data paths
++/* nv data paths */
 +#define GALAXYS4G_EFS_ROOT                         "/efs/root"
 +#define GALAXYS4G_NV_DATA_PATH                     "/efs/root/afs/settings/nv_data.bin"
 +#define GALAXYS4G_NV_DATA_MD5_PATH                 "/efs/root/afs/settings/nv_data.bin.md5"
@@ -2087,32 +2060,20 @@ index 0000000..830c591
 +    int onedram_fd;
 +};
 +
-+// Serial protocol
-+// <serial_ack> <NUL> <length> <NUL> <payload> <"reverse" XMODEM crc>
++struct galaxys4g_modem_data_header {
++    unsigned int serial_ack;
++    char padding;
++    unsigned short len;
++    char type;
++} __attribute__((__packed__));
 +
-+// This is prepended to each message
-+static const char* serial_ack = "\xaa\xfb\xee\xee";
++/* This is prepended to each message */
++#define SERIAL_ACK 4008639402U
 +
-+// I don't know how the multi-byte length is calculated...
-+static const char* modem_len_1 = "\x67\x03\x01"; // 880 - 4 (header) - 1 (<NUL>) - 2 (CRC) - strlen(this) = 870 (0x366)
-+static const char* modem_len_2 = "\x9d\x29\x03"; // 10662 - 4 (header) - 1 (<NUL>) - 2 (CRC) - strlen(this) = 1052 (0x41c)
-+
-+// Function headers
-+speed_t determine_baud_rate(int fd);
-+int connect_ccpu(struct ipc_client *client, int fd);
-+int load_modem_serial(struct ipc_client *client, int serial_fd);
-+int load_modem_onedram(struct ipc_client *client, int onedram_fd);
-+int set_serial_bits(int fd, int fast_baud);
-+int set_flow_control(int fd);
-+int init_serial(struct ipc_client *client, int fast_baud);
-+int receive_protrom(int fd, unsigned char* buf);
-+int create_protrom(int fd, int n, unsigned char* buf);
-+int contains_ack(unsigned char* data, int len);
-+
-+void test_printf(struct ipc_client *client, unsigned char* buf, size_t len);
-+
-+// Returns fd from /proc/self/fd for /dev/onedram
-+// Ideally, this would be passed through the transport data, but we can't - nor can we close/reopen onedram
++/* Returns fd from /proc/self/fd for /dev/onedram
++ * Ideally, this would be passed through the transport data,
++ * but we can't - nor can we close/reopen onedram
++ */
 +int get_onedram_fd();
 +
 +int galaxys4g_power(const char* cmd);
@@ -2163,127 +2124,45 @@ index a7a6098..f4ce84f 100644
 2.11.0
 
 
-From 65a0c183cc6b592143eb001d0734d0a3897b687f Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Mon, 23 Apr 2018 17:07:03 -0700
-Subject: [PATCH 4/7] Fix struct ipc_net_serving_network_data definition
+From 71bfcd17a8df51b3ce51ba18ee874d27111be7db Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 1 Oct 2018 20:36:56 -0700
+Subject: [PATCH 8/8] gprs: Change definition of struct
+ ipc_gprs_ip_configuration_data
 
-On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
+Not all devices include the last 4 chars which are unknown anyways, so remove them from the main ipc_gprs_ip_configuration_data struct.  Introduce struct ipc_gprs_ip_configuration_data_extra which does contain them which can be used if we ever do need to parse them
 ---
- include/net.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/gprs.h | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
-diff --git a/include/net.h b/include/net.h
-index 390541e..6d67e38 100644
---- a/include/net.h
-+++ b/include/net.h
-@@ -94,7 +94,7 @@ struct ipc_net_plmn_sel_request_data {
- struct ipc_net_serving_network_data {
-     unsigned char unknown[3];
-     char plmn[6];
--    unsigned short lac;
-+    unsigned char lac; // This can be either a short or a char
+diff --git a/include/gprs.h b/include/gprs.h
+index 83be9b1..287bc6d 100644
+--- a/include/gprs.h
++++ b/include/gprs.h
+@@ -131,6 +131,23 @@ struct ipc_gprs_ip_configuration_data {
+     unsigned char dns2[4];
+     unsigned char gateway[4];
+     unsigned char subnet_mask[4];
++};
++
++/*
++ * This is the same as ipc_gprs_ip_configuration_data but
++ * has an additional 4 chars - which aren't present on all
++ * devices.  It is safe to ignore them at this point as we
++ * don't parse them since we don't know what they mean
++ */
++struct ipc_gprs_ip_configuration_data_extra {
++    unsigned char cid;
++    unsigned char field_flag;
++    unsigned char fail_cause; // IPC_GPRS_FAIL_CAUSE
++    unsigned char ip[4];
++    unsigned char dns1[4];
++    unsigned char dns2[4];
++    unsigned char gateway[4];
++    unsigned char subnet_mask[4];
+     unsigned char unknown[4];
  } __attribute__((__packed__));
  
- struct ipc_net_plmn_list_header {
--- 
-2.11.0
-
-
-From 8b5dd9ceb07021144fd450b3bb4fe8639966c4c7 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Tue, 24 Apr 2018 14:19:30 -0700
-Subject: [PATCH 5/7] Add more call type defines
-
-We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
----
- include/call.h          | 3 +++
- samsung-ipc/ipc_utils.c | 6 ++++++
- 2 files changed, 9 insertions(+)
-
-diff --git a/include/call.h b/include/call.h
-index 4f5d152..cc0988a 100644
---- a/include/call.h
-+++ b/include/call.h
-@@ -37,6 +37,9 @@
- #define IPC_CALL_CONT_DTMF                                      0x0208
- #define IPC_CALL_WAITING                                        0x0209
- #define IPC_CALL_LINE_ID                                        0x020A
-+#define IPC_CALL_SIGNAL                                         0x020B
-+#define IPC_CALL_VOICE_PRIVACY                                  0x020C
-+#define IPC_CALL_CALL_TIME_COUNT                                0x020D
- 
- /*
-  * Values
-diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
-index 4e145e9..8c33e2e 100644
---- a/samsung-ipc/ipc_utils.c
-+++ b/samsung-ipc/ipc_utils.c
-@@ -117,6 +117,12 @@ const char *ipc_command_string(unsigned short command)
-             return "IPC_CALL_WAITING";
-         case IPC_CALL_LINE_ID:
-             return "IPC_CALL_LINE_ID";
-+        case IPC_CALL_SIGNAL:
-+            return "IPC_CALL_SIGNAL";
-+        case IPC_CALL_VOICE_PRIVACY:
-+            return "IPC_CALL_VOICE_PRIVACY";
-+        case IPC_CALL_CALL_TIME_COUNT:
-+            return "IPC_CALL_CALL_TIME_COUNT";
-         case IPC_SMS_SEND_MSG:
-             return "IPC_SMS_SEND_MSG";
-         case IPC_SMS_INCOMING_MSG:
--- 
-2.11.0
-
-
-From a2d0c480aa9d39b89a8aab08a300b43a1401bb8c Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Thu, 26 Apr 2018 11:42:20 -0700
-Subject: [PATCH 6/7] Add a default call type
-
-Used instead of voice with some devices
----
- include/call.h | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/include/call.h b/include/call.h
-index cc0988a..4c811c5 100644
---- a/include/call.h
-+++ b/include/call.h
-@@ -45,6 +45,7 @@
-  * Values
-  */
- 
-+#define IPC_CALL_TYPE_DEFAULT                                   0x00
- #define IPC_CALL_TYPE_VOICE                                     0x01
- #define IPC_CALL_TYPE_DATA                                      0x03
- 
--- 
-2.11.0
-
-
-From d5f7f7090400c685866bef890589f3b2878b504e Mon Sep 17 00:00:00 2001
-From: Jonathan Bakker <xc-racer2@live.ca>
-Date: Fri, 24 Aug 2018 17:16:02 -0700
-Subject: [PATCH 7/7] Fix includes for 4.4
-
-I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
----
- Android.mk | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/Android.mk b/Android.mk
-index 35d4db9..18b7720 100644
---- a/Android.mk
-+++ b/Android.mk
-@@ -86,6 +86,7 @@ LOCAL_SRC_FILES := \
- 	samsung-ipc/gen.c
- 
- LOCAL_C_INCLUDES := \
-+	external/openssl/include \
- 	$(LOCAL_PATH)/include \
- 	$(LOCAL_PATH)/samsung-ipc \
- 	$(LOCAL_PATH)/samsung-ipc/devices/aries/ \
 -- 
 2.11.0
 

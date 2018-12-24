@@ -1,7 +1,7 @@
 From 2af14f9f70d5787afde143b1482c1ea0fbba9687 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Fri, 24 Aug 2018 17:16:02 -0700
-Subject: [PATCH 1/8] Fix includes for 4.4
+Subject: [PATCH 1/9] Fix includes for 4.4
 
 I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
 ---
@@ -27,7 +27,7 @@ index 8944046..f1445fe 100644
 From c0fbf987452804109de370fe3b19e15e77b38392 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:55:20 -0700
-Subject: [PATCH 2/8] Add headers and defines for more RFS commands
+Subject: [PATCH 2/9] Add headers and defines for more RFS commands
 
 Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W) series for copying files from EFS to the modem device
 ---
@@ -275,7 +275,7 @@ index 33860ce..4e145e9 100644
 From cf894c5c30f403c85a990b0e80ce59fbd9def4e3 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Mon, 23 Apr 2018 17:07:03 -0700
-Subject: [PATCH 3/8] Fix struct ipc_net_serving_network_data definition
+Subject: [PATCH 3/9] Fix struct ipc_net_serving_network_data definition
 
 On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
 ---
@@ -302,7 +302,7 @@ index 390541e..6d67e38 100644
 From 4db4786b4ab6fcab41b3459b5a67f5a132ad744e Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Tue, 24 Apr 2018 14:19:30 -0700
-Subject: [PATCH 4/8] Add more call type defines
+Subject: [PATCH 4/9] Add more call type defines
 
 We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
 ---
@@ -348,7 +348,7 @@ index 4e145e9..8c33e2e 100644
 From c14e65fba620130534cfaec3dbdd315336883843 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Thu, 26 Apr 2018 11:42:20 -0700
-Subject: [PATCH 5/8] Add a default call type
+Subject: [PATCH 5/9] Add a default call type
 
 Used instead of voice with some devices
 ---
@@ -374,7 +374,7 @@ index cc0988a..4c811c5 100644
 From 42aaa1a0dfe7b8900ad5a3bdadcc9c526f4fad88 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sun, 15 Apr 2018 12:58:49 -0700
-Subject: [PATCH 6/8] Add CRC CCITT calculation library
+Subject: [PATCH 6/9] Add CRC CCITT calculation library
 
 The XMODEM version is used by Galaxy S 4G devices in the serial communication with its STE M5730 modem
 
@@ -688,7 +688,7 @@ index 0000000..7b3ddad
 From cf98ad19356a5e86b71524ea8e9bd329193cbe03 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:58:24 -0700
-Subject: [PATCH 7/8] Add support for SGH-T959P/SGH-T959V/SGH-T959W
+Subject: [PATCH 7/9] Add support for SGH-T959P/SGH-T959V/SGH-T959W
 
 They are a part of the first-gen Galaxy S series and use an STE M5730.  They communicate in a very similar manner to aries
 ---
@@ -2127,7 +2127,7 @@ index a7a6098..f4ce84f 100644
 From 71bfcd17a8df51b3ce51ba18ee874d27111be7db Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 1 Oct 2018 20:36:56 -0700
-Subject: [PATCH 8/8] gprs: Change definition of struct
+Subject: [PATCH 8/9] gprs: Change definition of struct
  ipc_gprs_ip_configuration_data
 
 Not all devices include the last 4 chars which are unknown anyways, so remove them from the main ipc_gprs_ip_configuration_data struct.  Introduce struct ipc_gprs_ip_configuration_data_extra which does contain them which can be used if we ever do need to parse them
@@ -2163,6 +2163,52 @@ index 83be9b1..287bc6d 100644
      unsigned char unknown[4];
  } __attribute__((__packed__));
  
+-- 
+2.11.0
+
+
+From 7668809a2c48151d1cc4b77093049dc741b02432 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Sun, 23 Dec 2018 18:40:13 -0800
+Subject: [PATCH 9/9] galaxys4g: Set the initial power to off
+
+It appears that the 0xc2 is actually from the kernel which is supposed to be written in MBC_PHONE_START (MB_VALID | MB_COMMAND | MBC_INIT_END).  However, adding in CP_BOOT_AIRPLANE causes it to boot in LPM mode which is what libsamsung-ipc/SamsungRIL is expecting.
+
+Note that stock only write 0xc2
+---
+ samsung-ipc/devices/galaxys4g/galaxys4g.c | 4 +++-
+ samsung-ipc/devices/galaxys4g/galaxys4g.h | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.c b/samsung-ipc/devices/galaxys4g/galaxys4g.c
+index 6577865..72f8949 100644
+--- a/samsung-ipc/devices/galaxys4g/galaxys4g.c
++++ b/samsung-ipc/devices/galaxys4g/galaxys4g.c
+@@ -588,8 +588,10 @@ init_device:
+ 
+     /* Write c2 to onedram */
+     rc = write(onedram_fd, GALAXYS4G_ONEDRAM_MAGIC_C2, 4);
+-    if (rc < 0)
++    if (rc < 0) {
++        ipc_client_log(client, "Failed to write c2 equiv to onedram %d", rc);
+         goto error_retry;
++    }
+ 
+     rc = 0;
+     goto complete;
+diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.h b/samsung-ipc/devices/galaxys4g/galaxys4g.h
+index dc5b2db..e51e9c1 100644
+--- a/samsung-ipc/devices/galaxys4g/galaxys4g.h
++++ b/samsung-ipc/devices/galaxys4g/galaxys4g.h
+@@ -26,7 +26,7 @@
+ #define __GALAXYS4G_H__
+ 
+ #define GALAXYS4G_ONEDRAM_DEVICE                    "/dev/onedram"
+-#define GALAXYS4G_ONEDRAM_MAGIC_C2                  "\xc2\x00\x00\x00"
++#define GALAXYS4G_ONEDRAM_MAGIC_C2                  "\xc2\x10\x00\x00"
+ #define GALAXYS4G_ONEDRAM_INIT                      0x12341234
+ #define GALAXYS4G_ONEDRAM_MAGIC                     0x45674567
+ #define GALAXYS4G_ONEDRAM_DEINIT                    0xABCDABCD
 -- 
 2.11.0
 

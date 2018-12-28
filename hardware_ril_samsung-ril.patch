@@ -340,20 +340,20 @@ index 9a6696a..0c7f1d6 100644
 2.11.0
 
 
-From 95d5cdd5238ad352de4bce9f037035c528283db3 Mon Sep 17 00:00:00 2001
+From 18ca6ba652b84c88893e5f3030b0eae0e09f9ba5 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Fri, 21 Sep 2018 13:39:36 -0700
 Subject: [PATCH 8/8] Implement more RFS commands
 
 These commands are used by the 4G HSPA+ versions of the first gen Galaxy S series.
 ---
- rfs.c         | 498 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ rfs.c         | 496 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  samsung-ril.c |  52 ++++++
  samsung-ril.h |   3 +
- 3 files changed, 553 insertions(+)
+ 3 files changed, 551 insertions(+)
 
 diff --git a/rfs.c b/rfs.c
-index 74d5325..e1c7e32 100644
+index 74d5325..7464d92 100644
 --- a/rfs.c
 +++ b/rfs.c
 @@ -17,7 +17,11 @@
@@ -368,7 +368,7 @@ index 74d5325..e1c7e32 100644
  
  #define LOG_TAG "RIL-RFS"
  #include <utils/Log.h>
-@@ -146,3 +150,497 @@ int ipc_rfs_nv_write_item(struct ipc_message *message)
+@@ -146,3 +150,495 @@ int ipc_rfs_nv_write_item(struct ipc_message *message)
  
  	return 0;
  }
@@ -379,7 +379,7 @@ index 74d5325..e1c7e32 100644
 +	struct ipc_rfs_read_dir_response_header *response_header;
 +	struct dirent *dirent;
 +	DIR *dirp;
-+	void *buffer;
++	void *buffer = NULL;
 +	size_t len;
 +	int rc;
 +
@@ -393,7 +393,7 @@ index 74d5325..e1c7e32 100644
 +	dirent = readdir(dirp);
 +	if (dirent == NULL) {
 +		len = sizeof(struct ipc_rfs_read_dir_response_header);
-+		buffer = calloc(1, len);
++		buffer = alloca(len);
 +		if (buffer == NULL)
 +			return -1;
 +		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
@@ -401,7 +401,7 @@ index 74d5325..e1c7e32 100644
 +		response_header->err = errno;
 +	} else {
 +		len = sizeof(struct ipc_rfs_read_dir_response_header) + strlen(dirent->d_name);
-+		buffer = calloc(1, len);
++		buffer = alloca(len);
 +		if (buffer == NULL)
 +			return -1;
 +		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
@@ -410,8 +410,6 @@ index 74d5325..e1c7e32 100644
 +	}
 +
 +	rc = ipc_rfs_send(message->aseq, IPC_RFS_READ_DIR, buffer, len);
-+
-+	free(buffer);
 +
 +	return 0;
 +}

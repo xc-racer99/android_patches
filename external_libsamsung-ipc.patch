@@ -685,7 +685,7 @@ index 0000000..7b3ddad
 2.11.0
 
 
-From e7d26080d8a882705d32b786d72f8be4b29d72c5 Mon Sep 17 00:00:00 2001
+From 4e0fa7dbad386f41e7b4ca4577f78f04a6914df7 Mon Sep 17 00:00:00 2001
 From: xc-racer99 <xc-racer2@live.ca>
 Date: Sat, 21 Apr 2018 15:58:24 -0700
 Subject: [PATCH 7/7] Add support for SGH-T959P/SGH-T959V/SGH-T959W
@@ -694,12 +694,12 @@ They are a part of the first-gen Galaxy S series and use an STE M5730.  They com
 ---
  Android.mk                                         |   6 +
  samsung-ipc/Makefile.am                            |   2 +
- samsung-ipc/devices/galaxys4g/galaxys4g.c          | 980 +++++++++++++++++++++
+ samsung-ipc/devices/galaxys4g/galaxys4g.c          | 981 +++++++++++++++++++++
  samsung-ipc/devices/galaxys4g/galaxys4g.h          |  65 ++
  .../devices/galaxys4g/galaxys4g_modem_ctl.h        |  47 +
  samsung-ipc/ipc_devices.c                          |  10 +
  samsung-ipc/ipc_devices.h                          |   1 +
- 7 files changed, 1111 insertions(+)
+ 7 files changed, 1112 insertions(+)
  create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.c
  create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.h
  create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g_modem_ctl.h
@@ -750,10 +750,10 @@ index 1dda9c2..7d394c6 100644
  	devices/piranha/piranha.c \
 diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.c b/samsung-ipc/devices/galaxys4g/galaxys4g.c
 new file mode 100644
-index 0000000..90339cf
+index 0000000..e6e3e0e
 --- /dev/null
 +++ b/samsung-ipc/devices/galaxys4g/galaxys4g.c
-@@ -0,0 +1,980 @@
+@@ -0,0 +1,981 @@
 +/*
 + * This file is part of libsamsung-ipc.
 + *
@@ -783,6 +783,7 @@ index 0000000..90339cf
 +#include <string.h>
 +#include <unistd.h>
 +#include <fcntl.h>
++#include <termios.h>
 +#include <sys/ioctl.h>
 +#include <sys/select.h>
 +

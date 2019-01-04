@@ -685,13 +685,13 @@ index 0000000..7b3ddad
 2.11.0
 
 
-From 8d2a27bb01118517589ebf1e823160a0c803660c Mon Sep 17 00:00:00 2001
+From 660c5e31b5639669655e2aa8660c2da08fcece0a Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Thu, 3 Jan 2019 12:18:24 -0800
-Subject: [PATCH 7/9] Add support for mainline  kernel and STE M5730 modems to
+Subject: [PATCH 7/9] Add support for mainline kernel and STE M5730 modems to
  Crespo driver
 
-Some Galaxy S variants use an STE modem which has a different startup
+Some Galaxy S variants use an STE modem which has a different startup sequence
 
 Additionally, add some alternative paths for serial and modem image
 devices as newer mainline kernels have some differences.
@@ -705,13 +705,13 @@ Also add a board name for S5PV210 mainline boards
  samsung-ipc/devices/crespo/crespo_modem_ctl.h |   3 +
  samsung-ipc/devices/crespo/crespo_ste_m5730.c | 543 ++++++++++++++++++++++++++
  samsung-ipc/devices/crespo/ste_m5730.h        |  36 ++
- samsung-ipc/ipc_devices.c                     |  10 +
- 8 files changed, 641 insertions(+), 6 deletions(-)
+ samsung-ipc/ipc_devices.c                     |  20 +
+ 8 files changed, 651 insertions(+), 6 deletions(-)
  create mode 100644 samsung-ipc/devices/crespo/crespo_ste_m5730.c
  create mode 100644 samsung-ipc/devices/crespo/ste_m5730.h
 
 diff --git a/Android.mk b/Android.mk
-index 3aa9dd0..541c63a 100644
+index 3aa9dd0..4f900a3 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -19,7 +19,7 @@ LOCAL_PATH := $(call my-dir)
@@ -719,7 +719,7 @@ index 3aa9dd0..541c63a 100644
  include $(CLEAR_VARS)
  
 -ifneq (,$(filter crespo,$(TARGET_DEVICE)))
-+ifneq (,$(filter crespo galaxys4gmtd fascinate4gmtd,$(TARGET_DEVICE)))
++ifneq (,$(filter crespo fascinate4gmtd fascinate4gubi galaxys4gmtd galaxys4gubi telusgalaxys4gmtd telusgalaxys4gubi,$(TARGET_DEVICE)))
  	ipc_device_name := crespo
  endif
  
@@ -1495,13 +1495,23 @@ index 0000000..c6e41de
 +
 +
 diff --git a/samsung-ipc/ipc_devices.c b/samsung-ipc/ipc_devices.c
-index ad7d23c..f0d4461 100644
+index ad7d23c..bb9f88c 100644
 --- a/samsung-ipc/ipc_devices.c
 +++ b/samsung-ipc/ipc_devices.c
-@@ -44,6 +44,16 @@ struct ipc_device_desc ipc_devices[] = {
+@@ -44,6 +44,26 @@ struct ipc_device_desc ipc_devices[] = {
          .nv_data_specs = &crespo_nv_data_specs,
      },
      {
++        .name = "crespo",
++        .board_name = "aries",
++        .kernel_version = "3.0",
++        .fmt_ops = &crespo_fmt_ops,
++        .rfs_ops = &crespo_rfs_ops,
++        .handlers = &crespo_handlers,
++        .gprs_specs = &crespo_gprs_specs,
++        .nv_data_specs = &crespo_nv_data_specs,
++    },
++    {
 +        .name = "crespo",
 +        .board_name = "Samsung S5PC110/S5PV210-based board",
 +        .kernel_version = NULL,
@@ -1519,7 +1529,7 @@ index ad7d23c..f0d4461 100644
 2.11.0
 
 
-From f0283623b695a9d7febd5205b10729b4bf6e1f54 Mon Sep 17 00:00:00 2001
+From 1c1a56ede19cf119e4b57e3f3249ede68c7980a5 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 31 Dec 2018 12:36:17 -0800
 Subject: [PATCH 8/9] ipc-modem: Add support for RFS commands
@@ -1536,7 +1546,7 @@ Some devices may need access to RFS commands before they connect
  create mode 100644 tools/rfs.h
 
 diff --git a/Android.mk b/Android.mk
-index 541c63a..4a52f9a 100644
+index 4f900a3..cefbfa7 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -101,12 +101,14 @@ include $(BUILD_STATIC_LIBRARY)
@@ -2375,7 +2385,7 @@ index 0000000..6957ffa
 2.11.0
 
 
-From 195a471be277401d94339885ed5bb7e51e232b71 Mon Sep 17 00:00:00 2001
+From 63fe5d31fad8151c62133688372ece1f11c69d11 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Thu, 3 Jan 2019 18:04:28 -0800
 Subject: [PATCH 9/9] Make /proc/cpuinfo matching actually work

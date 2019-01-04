@@ -1,759 +1,227 @@
-From 2af14f9f70d5787afde143b1482c1ea0fbba9687 Mon Sep 17 00:00:00 2001
+From 8d2a27bb01118517589ebf1e823160a0c803660c Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
-Date: Fri, 24 Aug 2018 17:16:02 -0700
-Subject: [PATCH 1/7] Fix includes for 4.4
+Date: Thu, 3 Jan 2019 12:18:24 -0800
+Subject: [PATCH 1/3] Add support for mainline  kernel and STE M5730 modems to
+ Crespo driver
 
-I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
+Some Galaxy S variants use an STE modem which has a different startup
+
+Additionally, add some alternative paths for serial and modem image
+devices as newer mainline kernels have some differences.
+
+Also add a board name for S5PV210 mainline boards
 ---
- Android.mk | 1 +
- 1 file changed, 1 insertion(+)
+ Android.mk                                    |   3 +-
+ samsung-ipc/Makefile.am                       |   2 +
+ samsung-ipc/devices/crespo/crespo.c           |  43 +-
+ samsung-ipc/devices/crespo/crespo.h           |   7 +-
+ samsung-ipc/devices/crespo/crespo_modem_ctl.h |   3 +
+ samsung-ipc/devices/crespo/crespo_ste_m5730.c | 543 ++++++++++++++++++++++++++
+ samsung-ipc/devices/crespo/ste_m5730.h        |  36 ++
+ samsung-ipc/ipc_devices.c                     |  10 +
+ 8 files changed, 641 insertions(+), 6 deletions(-)
+ create mode 100644 samsung-ipc/devices/crespo/crespo_ste_m5730.c
+ create mode 100644 samsung-ipc/devices/crespo/ste_m5730.h
 
 diff --git a/Android.mk b/Android.mk
-index 8944046..f1445fe 100644
+index 3aa9dd0..541c63a 100644
 --- a/Android.mk
 +++ b/Android.mk
-@@ -80,6 +80,7 @@ LOCAL_SRC_FILES := \
- 	samsung-ipc/gen.c
+@@ -19,7 +19,7 @@ LOCAL_PATH := $(call my-dir)
  
- LOCAL_C_INCLUDES := \
-+	external/openssl/include \
- 	$(LOCAL_PATH)/include \
- 	$(LOCAL_PATH)/samsung-ipc \
- 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
--- 
-2.11.0
-
-
-From c0fbf987452804109de370fe3b19e15e77b38392 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Sat, 21 Apr 2018 15:55:20 -0700
-Subject: [PATCH 2/7] Add headers and defines for more RFS commands
-
-Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W) series for copying files from EFS to the modem device
----
- include/rfs.h           | 113 ++++++++++++++++++++++++++++++++++++++++++++++++
- include/samsung-ipc.h   |   1 +
- samsung-ipc/ipc.c       |   8 ++++
- samsung-ipc/ipc.h       |   1 +
- samsung-ipc/ipc_utils.c |  38 ++++++++++++++++
- 5 files changed, 161 insertions(+)
-
-diff --git a/include/rfs.h b/include/rfs.h
-index 7950f16..2f346ce 100644
---- a/include/rfs.h
-+++ b/include/rfs.h
-@@ -28,6 +28,25 @@
+ include $(CLEAR_VARS)
  
- #define IPC_RFS_NV_READ_ITEM                                    0x4201
- #define IPC_RFS_NV_WRITE_ITEM                                   0x4202
-+#define IPC_RFS_READ_FILE                                       0x4203
-+#define IPC_RFS_WRITE_FILE                                      0x4204
-+#define IPC_RFS_LSEEK_FILE                                      0x4205
-+#define IPC_RFS_CLOSE_FILE                                      0x4206
-+#define IPC_RFS_PUT_FILE                                        0x4207
-+#define IPC_RFS_GET_FILE                                        0x4208
-+#define IPC_RFS_RENAME_FILE                                     0x4209
-+#define IPC_RFS_GET_FILE_INFO                                   0x420a
-+#define IPC_RFS_UNLINK_FILE                                     0x420b
-+#define IPC_RFS_MAKE_DIR                                        0x420c
-+#define IPC_RFS_REMOVE_DIR                                      0x420d
-+#define IPC_RFS_OPEN_DIR                                        0x420e
-+#define IPC_RFS_READ_DIR                                        0x420f
-+#define IPC_RFS_CLOSE_DIR                                       0x4210
-+#define IPC_RFS_OPEN_FILE                                       0x4211
-+#define IPC_RFS_FTRUNCATE_FILE                                  0x4212
-+#define IPC_RFS_GET_HANDLE_INFO                                 0x4213
-+#define IPC_RFS_CREATE_FILE                                     0x4214
-+#define IPC_RFS_NV_WRITE_ALL_ITEM                               0x4215
- 
- /*
-  * Values
-@@ -36,6 +55,9 @@
- #define NV_DATA_SECRET                          "Samsung_Android_RIL"
- #define NV_DATA_SIZE                                            0x200000
- #define NV_DATA_CHUNK_SIZE                                      0x1000
-+#define IPC_RFS_TYPE_UNKNOWN                                    0x0
-+#define IPC_RFS_TYPE_DIRECTORY                                  0x1
-+#define IPC_RFS_TYPE_FILE                                       0x2
- 
- /*
-  * Structures
-@@ -63,6 +85,97 @@ struct ipc_rfs_nv_write_item_response_data {
-     unsigned int length;
- } __attribute__((__packed__));
- 
-+struct ipc_rfs_generic_io_response_header {
-+    int ret;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_dir_response_header {
-+    int ret;
-+    int len;
-+    int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_file_info_response_data {
-+    unsigned int ret;
-+    unsigned short type;
-+    unsigned int size;
-+    unsigned char c_year;
-+    unsigned char c_month;
-+    unsigned char c_day;
-+    unsigned char c_hour;
-+    unsigned char c_min;
-+    unsigned char c_sec;
-+    unsigned char m_year;
-+    unsigned char m_month;
-+    unsigned char m_day;
-+    unsigned char m_hour;
-+    unsigned char m_min;
-+    unsigned char m_sec;
-+    unsigned int err;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_file_request_header {
-+    int fd;
-+    int len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_write_file_request_header {
-+    int fd;
-+    int len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_lseek_file_request_header {
-+    int fd;
-+    int offset;
-+    int whence;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_file_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_file_info_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_rename_file_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_unlink_file_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_make_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_remove_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_dir_request_header {
-+    int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_read_dir_request_header {
-+    unsigned int addr;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_close_dir_request_header {
-+    unsigned int addr;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_open_file_request_header {
-+    unsigned int flags; // | O_DSYNC
-+    unsigned int path_len;
-+} __attribute__((__packed__));
-+
-+struct ipc_rfs_get_handle_info_request_header {
-+    int fd;
-+} __attribute__((__packed__));
-+
- /*
-  * Helpers
-  */
-diff --git a/include/samsung-ipc.h b/include/samsung-ipc.h
-index 9d638ec..3bde3c0 100644
---- a/include/samsung-ipc.h
-+++ b/include/samsung-ipc.h
-@@ -105,6 +105,7 @@ char *ipc_client_gprs_get_iface(struct ipc_client *client, unsigned int cid);
- int ipc_client_gprs_get_capabilities(struct ipc_client *client,
-     struct ipc_client_gprs_capabilities *capabilities);
- 
-+char *ipc_client_efs_root(struct ipc_client *client);
- char *ipc_client_nv_data_path(struct ipc_client *client);
- char *ipc_client_nv_data_md5_path(struct ipc_client *client);
- char *ipc_client_nv_data_backup_path(struct ipc_client *client);
-diff --git a/samsung-ipc/ipc.c b/samsung-ipc/ipc.c
-index b3ee679..fcfd19c 100644
---- a/samsung-ipc/ipc.c
-+++ b/samsung-ipc/ipc.c
-@@ -431,6 +431,14 @@ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
-     return client->gprs_specs->gprs_get_capabilities(capabilities);
- }
- 
-+char *ipc_client_efs_root(struct ipc_client *client)
-+{
-+    if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->efs_root == NULL)
-+        return NULL;
-+
-+    return client->nv_data_specs->efs_root;
-+}
-+
- char *ipc_client_nv_data_path(struct ipc_client *client)
- {
-     if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->nv_data_path == NULL)
-diff --git a/samsung-ipc/ipc.h b/samsung-ipc/ipc.h
-index 60fca12..ed483f2 100644
---- a/samsung-ipc/ipc.h
-+++ b/samsung-ipc/ipc.h
-@@ -70,6 +70,7 @@ struct ipc_client_gprs_specs {
- };
- 
- struct ipc_client_nv_data_specs {
-+    char *efs_root;
-     char *nv_data_path;
-     char *nv_data_md5_path;
-     char *nv_data_backup_path;
-diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
-index 33860ce..4e145e9 100644
---- a/samsung-ipc/ipc_utils.c
-+++ b/samsung-ipc/ipc_utils.c
-@@ -345,6 +345,44 @@ const char *ipc_command_string(unsigned short command)
-             return "IPC_RFS_NV_READ_ITEM";
-         case IPC_RFS_NV_WRITE_ITEM:
-             return "IPC_RFS_NV_WRITE_ITEM";
-+        case IPC_RFS_READ_FILE:
-+            return "IPC_RFS_READ_FILE";
-+        case IPC_RFS_WRITE_FILE:
-+            return "IPC_RFS_WRITE_FILE";
-+        case IPC_RFS_LSEEK_FILE:
-+            return "IPC_RFS_LSEEK_FILE";
-+        case IPC_RFS_CLOSE_FILE:
-+            return "IPC_RFS_CLOSE_FILE";
-+        case IPC_RFS_PUT_FILE:
-+            return "IPC_RFS_PUT_FILE";
-+        case IPC_RFS_GET_FILE:
-+            return "IPC_RFS_GET_FILE";
-+        case IPC_RFS_RENAME_FILE:
-+            return "IPC_RFS_RENAME_FILE";
-+        case IPC_RFS_GET_FILE_INFO:
-+            return "IPC_RFS_GET_FILE_INFO";
-+        case IPC_RFS_UNLINK_FILE:
-+            return "IPC_RFS_UNLINK_FILE";
-+        case IPC_RFS_MAKE_DIR:
-+            return "IPC_RFS_MAKE_DIR";
-+        case IPC_RFS_REMOVE_DIR:
-+            return "IPC_RFS_REMOVE_DIR";
-+        case IPC_RFS_OPEN_DIR:
-+            return "IPC_RFS_OPEN_DIR";
-+        case IPC_RFS_READ_DIR:
-+            return "IPC_RFS_READ_DIR";
-+        case IPC_RFS_CLOSE_DIR:
-+            return "IPC_RFS_CLOSE_DIR";
-+        case IPC_RFS_OPEN_FILE:
-+            return "IPC_RFS_OPEN_FILE";
-+        case IPC_RFS_FTRUNCATE_FILE:
-+            return "IPC_RFS_FTRUNCATE_FILE";
-+        case IPC_RFS_GET_HANDLE_INFO:
-+            return "IPC_RFS_GET_HANDLE_INFO";
-+        case IPC_RFS_CREATE_FILE:
-+            return "IPC_RFS_CREATE_FILE";
-+        case IPC_RFS_NV_WRITE_ALL_ITEM:
-+            return "IPC_RFS_NV_WRITE_ALL_ITEM";
-         case IPC_GEN_PHONE_RES:
-             return "IPC_GEN_PHONE_RES";
-         default:
--- 
-2.11.0
-
-
-From cf894c5c30f403c85a990b0e80ce59fbd9def4e3 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Mon, 23 Apr 2018 17:07:03 -0700
-Subject: [PATCH 3/7] Fix struct ipc_net_serving_network_data definition
-
-On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
----
- include/net.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/net.h b/include/net.h
-index 390541e..6d67e38 100644
---- a/include/net.h
-+++ b/include/net.h
-@@ -94,7 +94,7 @@ struct ipc_net_plmn_sel_request_data {
- struct ipc_net_serving_network_data {
-     unsigned char unknown[3];
-     char plmn[6];
--    unsigned short lac;
-+    unsigned char lac; // This can be either a short or a char
- } __attribute__((__packed__));
- 
- struct ipc_net_plmn_list_header {
--- 
-2.11.0
-
-
-From 4db4786b4ab6fcab41b3459b5a67f5a132ad744e Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Tue, 24 Apr 2018 14:19:30 -0700
-Subject: [PATCH 4/7] Add more call type defines
-
-We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
----
- include/call.h          | 3 +++
- samsung-ipc/ipc_utils.c | 6 ++++++
- 2 files changed, 9 insertions(+)
-
-diff --git a/include/call.h b/include/call.h
-index 4f5d152..cc0988a 100644
---- a/include/call.h
-+++ b/include/call.h
-@@ -37,6 +37,9 @@
- #define IPC_CALL_CONT_DTMF                                      0x0208
- #define IPC_CALL_WAITING                                        0x0209
- #define IPC_CALL_LINE_ID                                        0x020A
-+#define IPC_CALL_SIGNAL                                         0x020B
-+#define IPC_CALL_VOICE_PRIVACY                                  0x020C
-+#define IPC_CALL_CALL_TIME_COUNT                                0x020D
- 
- /*
-  * Values
-diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
-index 4e145e9..8c33e2e 100644
---- a/samsung-ipc/ipc_utils.c
-+++ b/samsung-ipc/ipc_utils.c
-@@ -117,6 +117,12 @@ const char *ipc_command_string(unsigned short command)
-             return "IPC_CALL_WAITING";
-         case IPC_CALL_LINE_ID:
-             return "IPC_CALL_LINE_ID";
-+        case IPC_CALL_SIGNAL:
-+            return "IPC_CALL_SIGNAL";
-+        case IPC_CALL_VOICE_PRIVACY:
-+            return "IPC_CALL_VOICE_PRIVACY";
-+        case IPC_CALL_CALL_TIME_COUNT:
-+            return "IPC_CALL_CALL_TIME_COUNT";
-         case IPC_SMS_SEND_MSG:
-             return "IPC_SMS_SEND_MSG";
-         case IPC_SMS_INCOMING_MSG:
--- 
-2.11.0
-
-
-From c14e65fba620130534cfaec3dbdd315336883843 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Thu, 26 Apr 2018 11:42:20 -0700
-Subject: [PATCH 5/7] Add a default call type
-
-Used instead of voice with some devices
----
- include/call.h | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/include/call.h b/include/call.h
-index cc0988a..4c811c5 100644
---- a/include/call.h
-+++ b/include/call.h
-@@ -45,6 +45,7 @@
-  * Values
-  */
- 
-+#define IPC_CALL_TYPE_DEFAULT                                   0x00
- #define IPC_CALL_TYPE_VOICE                                     0x01
- #define IPC_CALL_TYPE_DATA                                      0x03
- 
--- 
-2.11.0
-
-
-From 42aaa1a0dfe7b8900ad5a3bdadcc9c526f4fad88 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Sun, 15 Apr 2018 12:58:49 -0700
-Subject: [PATCH 6/7] Add CRC CCITT calculation library
-
-The XMODEM version is used by Galaxy S 4G devices in the serial communication with its STE M5730 modem
-
-From https://github.com/lammertb/libcrc/tree/v2.0
----
- Android.mk              |   1 +
- samsung-ipc/Makefile.am |   1 +
- samsung-ipc/checksum.h  |  81 ++++++++++++++++++++++
- samsung-ipc/crc_ccitt.c | 176 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 259 insertions(+)
- create mode 100644 samsung-ipc/checksum.h
- create mode 100644 samsung-ipc/crc_ccitt.c
-
-diff --git a/Android.mk b/Android.mk
-index f1445fe..3aa9dd0 100644
---- a/Android.mk
-+++ b/Android.mk
-@@ -68,6 +68,7 @@ LOCAL_SRC_FILES := \
- 	samsung-ipc/devices/i9300/i9300.c \
- 	samsung-ipc/devices/n7100/n7100.c \
- 	samsung-ipc/devices/n5100/n5100.c \
-+	samsung-ipc/crc_ccitt.c \
- 	samsung-ipc/utils.c \
- 	samsung-ipc/call.c \
- 	samsung-ipc/sms.c \
-diff --git a/samsung-ipc/Makefile.am b/samsung-ipc/Makefile.am
-index ed65c29..1dda9c2 100644
---- a/samsung-ipc/Makefile.am
-+++ b/samsung-ipc/Makefile.am
-@@ -55,6 +55,7 @@ libsamsung_ipc_la_SOURCES = \
- 	devices/n5100/n5100.c \
- 	devices/n5100/n5100.h \
- 	utils.c \
-+	crc_ccitt.c \
- 	call.c \
- 	sms.c \
- 	sec.c \
-diff --git a/samsung-ipc/checksum.h b/samsung-ipc/checksum.h
-new file mode 100644
-index 0000000..0a3dee7
---- /dev/null
-+++ b/samsung-ipc/checksum.h
-@@ -0,0 +1,81 @@
-+/*
-+ * Library: libcrc
-+ * File:    include/checksum.h
-+ * Author:  Lammert Bies
-+ *
-+ * This file is licensed under the MIT License as stated below
-+ *
-+ * Copyright (c) 1999-2016 Lammert Bies
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a copy
-+ * of this software and associated documentation files (the "Software"), to deal
-+ * in the Software without restriction, including without limitation the rights
-+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-+ * copies of the Software, and to permit persons to whom the Software is
-+ * furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in all
-+ * copies or substantial portions of the Software.
-+ * 
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-+ * SOFTWARE.
-+ *
-+ * Description
-+ * -----------
-+ * The headerfile include/checksum.h contains the definitions and prototypes
-+ * for routines that can be used to calculate several kinds of checksums.
-+ */
-+
-+#ifndef DEF_LIBCRC_CHECKSUM_H
-+#define DEF_LIBCRC_CHECKSUM_H
-+
-+#include <stdint.h>
-+
-+/*
-+ * #define CRC_POLY_xxxx
-+ *
-+ * The constants of the form CRC_POLY_xxxx define the polynomials for some well
-+ * known CRC calculations.
-+ */
-+
-+#define		CRC_POLY_16		0xA001
-+#define		CRC_POLY_32		0xEDB88320L
-+#define		CRC_POLY_CCITT		0x1021
-+#define		CRC_POLY_DNP		0xA6BC
-+#define		CRC_POLY_KERMIT		0x8408
-+#define		CRC_POLY_SICK		0x8005
-+
-+/*
-+ * #define CRC_START_xxxx
-+ *
-+ * The constants of the form CRC_START_xxxx define the values that are used for
-+ * initialization of a CRC value for common used calculation methods.
-+ */
-+
-+#define		CRC_START_8		0x00
-+#define		CRC_START_16		0x0000
-+#define		CRC_START_MODBUS	0xFFFF
-+#define		CRC_START_XMODEM	0x0000
-+#define		CRC_START_CCITT_1D0F	0x1D0F
-+#define		CRC_START_CCITT_FFFF	0xFFFF
-+#define		CRC_START_KERMIT	0x0000
-+#define		CRC_START_SICK		0x0000
-+#define		CRC_START_DNP		0x0000
-+#define		CRC_START_32		0xFFFFFFFFL
-+
-+/*
-+ * Prototype list of global functions
-+ */
-+
-+uint16_t		crc_ccitt_1d0f(    const unsigned char *input_str, size_t num_bytes       );
-+uint16_t		crc_ccitt_ffff(    const unsigned char *input_str, size_t num_bytes       );
-+uint16_t		crc_xmodem(        const unsigned char *input_str, size_t num_bytes       );
-+uint16_t		update_crc_ccitt(  uint16_t crc, unsigned char c                          );
-+
-+#endif  // DEF_LIBCRC_CHECKSUM_H
-+
-diff --git a/samsung-ipc/crc_ccitt.c b/samsung-ipc/crc_ccitt.c
-new file mode 100644
-index 0000000..7b3ddad
---- /dev/null
-+++ b/samsung-ipc/crc_ccitt.c
-@@ -0,0 +1,176 @@
-+/*
-+ * Library: libcrc
-+ * File:    src/crcccitt.c
-+ * Author:  Lammert Bies
-+ *
-+ * This file is licensed under the MIT License as stated below
-+ *
-+ * Copyright (c) 1999-2016 Lammert Bies
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a copy
-+ * of this software and associated documentation files (the "Software"), to deal
-+ * in the Software without restriction, including without limitation the rights
-+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-+ * copies of the Software, and to permit persons to whom the Software is
-+ * furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in all
-+ * copies or substantial portions of the Software.
-+ * 
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-+ * SOFTWARE.
-+ *
-+ * Description
-+ * -----------
-+ * The module src/crcccitt.c contains routines which are used to calculate the
-+ * CCITT CRC values of a string of bytes.
-+ */
-+
-+#include <stdbool.h>
-+#include <stdlib.h>
-+#include "checksum.h"
-+
-+static uint16_t		crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value );
-+static void             init_crcccitt_tab( void );
-+
-+static bool             crc_tabccitt_init       = false;
-+static uint16_t         crc_tabccitt[256];
-+
-+/*
-+ * uint16_t crc_xmodem( const unsigned char *input_str, size_t num_bytes );
-+ *
-+ * The function crc_xmodem() performs a one-pass calculation of an X-Modem CRC
-+ * for a byte string that has been passed as a parameter.
-+ */
-+
-+uint16_t crc_xmodem( const unsigned char *input_str, size_t num_bytes ) {
-+
-+	return crc_ccitt_generic( input_str, num_bytes, CRC_START_XMODEM );
-+
-+}  /* crc_xmodem */
-+
-+/*
-+ * uint16_t crc_ccitt_1d0f( const unsigned char *input_str, size_t num_bytes );
-+ *
-+ * The function crc_ccitt_1d0f() performs a one-pass calculation of the CCITT
-+ * CRC for a byte string that has been passed as a parameter. The initial value
-+ * 0x1d0f is used for the CRC.
-+ */
-+
-+uint16_t crc_ccitt_1d0f( const unsigned char *input_str, size_t num_bytes ) {
-+
-+	return crc_ccitt_generic( input_str, num_bytes, CRC_START_CCITT_1D0F );
-+
-+}  /* crc_ccitt_1d0f */
-+
-+/*
-+ * uint16_t crc_ccitt_ffff( const unsigned char *input_str, size_t num_bytes );
-+ *
-+ * The function crc_ccitt_ffff() performs a one-pass calculation of the CCITT
-+ * CRC for a byte string that has been passed as a parameter. The initial value
-+ * 0xffff is used for the CRC.
-+ */
-+
-+uint16_t crc_ccitt_ffff( const unsigned char *input_str, size_t num_bytes ) {
-+
-+	return crc_ccitt_generic( input_str, num_bytes, CRC_START_CCITT_FFFF );
-+
-+}  /* crc_ccitt_ffff */
-+
-+/*
-+ * static uint16_t crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value );
-+ *
-+ * The function crc_ccitt_generic() is a generic implementation of the CCITT
-+ * algorithm for a one-pass calculation of the CRC for a byte string. The
-+ * function accepts an initial start value for the crc.
-+ */
-+
-+static uint16_t crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value ) {
-+
-+	uint16_t crc;
-+	uint16_t tmp;
-+	uint16_t short_c;
-+	const unsigned char *ptr;
-+	size_t a;
-+
-+	if ( ! crc_tabccitt_init ) init_crcccitt_tab();
-+
-+	crc = start_value;
-+	ptr = input_str;
-+
-+	if ( ptr != NULL ) for (a=0; a<num_bytes; a++) {
-+
-+		short_c = 0x00ff & (unsigned short) *ptr;
-+		tmp     = (crc >> 8) ^ short_c;
-+		crc     = (crc << 8) ^ crc_tabccitt[tmp];
-+
-+		ptr++;
-+	}
-+
-+	return crc;
-+
-+}  /* crc_ccitt_generic */
-+
-+/*
-+ * uint16_t update_crc_ccitt( uint16_t crc, unsigned char c );
-+ *
-+ * The function update_crc_ccitt() calculates a new CRC-CCITT value based on
-+ * the previous value of the CRC and the next byte of the data to be checked.
-+ */
-+
-+uint16_t update_crc_ccitt( uint16_t crc, unsigned char c ) {
-+
-+	int16_t tmp;
-+	int16_t short_c;
-+
-+	short_c  = 0x00ff & (uint16_t) c;
-+
-+	if ( ! crc_tabccitt_init ) init_crcccitt_tab();
-+
-+	tmp = (crc >> 8) ^ short_c;
-+	crc = (crc << 8) ^ crc_tabccitt[tmp];
-+
-+	return crc;
-+
-+}  /* update_crc_ccitt */
-+
-+/*
-+ * static void init_crcccitt_tab( void );
-+ *
-+ * For optimal performance, the routine to calculate the CRC-CCITT uses a
-+ * lookup table with pre-compiled values that can be directly applied in the
-+ * XOR action. This table is created at the first call of the function by the
-+ * init_crcccitt_tab() routine.
-+ */
-+
-+static void init_crcccitt_tab( void ) {
-+
-+	uint16_t i;
-+	uint16_t j;
-+	uint16_t crc;
-+	uint16_t c;
-+
-+	for (i=0; i<256; i++) {
-+
-+		crc = 0;
-+		c   = i << 8;
-+
-+		for (j=0; j<8; j++) {
-+
-+			if ( (crc ^ c) & 0x8000 ) crc = ( crc << 1 ) ^ CRC_POLY_CCITT;
-+			else                      crc =   crc << 1;
-+
-+			c = c << 1;
-+		}
-+
-+		crc_tabccitt[i] = crc;
-+	}
-+
-+	crc_tabccitt_init = true;
-+
-+}  /* init_crcccitt_tab */
--- 
-2.11.0
-
-
-From 4e0fa7dbad386f41e7b4ca4577f78f04a6914df7 Mon Sep 17 00:00:00 2001
-From: xc-racer99 <xc-racer2@live.ca>
-Date: Sat, 21 Apr 2018 15:58:24 -0700
-Subject: [PATCH 7/7] Add support for SGH-T959P/SGH-T959V/SGH-T959W
-
-They are a part of the first-gen Galaxy S series and use an STE M5730.  They communicate in a very similar manner to crespo
----
- Android.mk                                         |   6 +
- samsung-ipc/Makefile.am                            |   2 +
- samsung-ipc/devices/galaxys4g/galaxys4g.c          | 981 +++++++++++++++++++++
- samsung-ipc/devices/galaxys4g/galaxys4g.h          |  65 ++
- .../devices/galaxys4g/galaxys4g_modem_ctl.h        |  47 +
- samsung-ipc/ipc_devices.c                          |  10 +
- samsung-ipc/ipc_devices.h                          |   1 +
- 7 files changed, 1112 insertions(+)
- create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.c
- create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g.h
- create mode 100644 samsung-ipc/devices/galaxys4g/galaxys4g_modem_ctl.h
-
-diff --git a/Android.mk b/Android.mk
-index 3aa9dd0..18b7720 100644
---- a/Android.mk
-+++ b/Android.mk
-@@ -23,6 +23,10 @@ ifneq (,$(filter crespo,$(TARGET_DEVICE)))
+-ifneq (,$(filter crespo,$(TARGET_DEVICE)))
++ifneq (,$(filter crespo galaxys4gmtd fascinate4gmtd,$(TARGET_DEVICE)))
  	ipc_device_name := crespo
  endif
  
-+ifneq (,$(filter galaxys4gmtd telusgalaxys4gmtd,$(TARGET_DEVICE)))
-+	ipc_device_name := galaxys4g
-+endif
-+
- ifneq (,$(filter galaxysmtd galaxytab,$(TARGET_DEVICE)))
- 	ipc_device_name := aries
- endif
-@@ -63,6 +67,7 @@ LOCAL_SRC_FILES := \
+@@ -61,6 +61,7 @@ LOCAL_SRC_FILES := \
+ 	samsung-ipc/devices/xmm626/xmm626_mipi.c \
+ 	samsung-ipc/devices/xmm626/xmm626_sec_modem.c \
  	samsung-ipc/devices/crespo/crespo.c \
++	samsung-ipc/devices/crespo/crespo_ste_m5730.c \
  	samsung-ipc/devices/aries/aries.c \
  	samsung-ipc/devices/galaxys2/galaxys2.c \
-+	samsung-ipc/devices/galaxys4g/galaxys4g.c \
  	samsung-ipc/devices/maguro/maguro.c \
- 	samsung-ipc/devices/piranha/piranha.c \
- 	samsung-ipc/devices/i9300/i9300.c \
-@@ -84,6 +89,7 @@ LOCAL_C_INCLUDES := \
- 	external/openssl/include \
- 	$(LOCAL_PATH)/include \
- 	$(LOCAL_PATH)/samsung-ipc \
-+	$(LOCAL_PATH)/samsung-ipc/devices/aries/ \
- 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
- 	$(LOCAL_PATH)/samsung-ipc/devices/xmm626/
- 
 diff --git a/samsung-ipc/Makefile.am b/samsung-ipc/Makefile.am
-index 1dda9c2..7d394c6 100644
+index 1dda9c2..7bdfd37 100644
 --- a/samsung-ipc/Makefile.am
 +++ b/samsung-ipc/Makefile.am
-@@ -44,6 +44,8 @@ libsamsung_ipc_la_SOURCES = \
- 	devices/aries/phonet.h \
- 	devices/galaxys2/galaxys2.c \
- 	devices/galaxys2/galaxys2.h \
-+	devices/galaxys4g/galaxys4g.c \
-+	devices/galaxys4g/galaxys4g.h \
- 	devices/maguro/maguro.c \
- 	devices/maguro/maguro.h \
- 	devices/piranha/piranha.c \
-diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.c b/samsung-ipc/devices/galaxys4g/galaxys4g.c
+@@ -36,8 +36,10 @@ libsamsung_ipc_la_SOURCES = \
+ 	devices/xmm626/modem_link_device_hsic.h \
+ 	devices/xmm626/modem_prj.h \
+ 	devices/crespo/crespo.c \
++	devices/crespo/crespo_ste_m5730.c \
+ 	devices/crespo/crespo.h \
+ 	devices/crespo/crespo_modem_ctl.h \
++	devices/crespo/ste_m5730.h \
+ 	devices/aries/aries.c \
+ 	devices/aries/aries.h \
+ 	devices/aries/onedram.h \
+diff --git a/samsung-ipc/devices/crespo/crespo.c b/samsung-ipc/devices/crespo/crespo.c
+index c6837e5..40dca27 100644
+--- a/samsung-ipc/devices/crespo/crespo.c
++++ b/samsung-ipc/devices/crespo/crespo.c
+@@ -26,6 +26,7 @@
+ #include <stdbool.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <errno.h>
+ #include <fcntl.h>
+ #include <sys/ioctl.h>
+ #include <sys/select.h>
+@@ -36,9 +37,10 @@
+ #include "crespo_modem_ctl.h"
+ 
+ #include "xmm616.h"
++#include "ste_m5730.h"
+ #include "crespo.h"
+ 
+-int crespo_boot(struct ipc_client *client)
++int crespo_xmm_boot(struct ipc_client *client)
+ {
+     void *modem_image_data = NULL;
+     int modem_ctl_fd = -1;
+@@ -51,7 +53,13 @@ int crespo_boot(struct ipc_client *client)
+ 
+     ipc_client_log(client, "Starting crespo modem boot");
+ 
+-    modem_image_data = file_data_read(CRESPO_MODEM_IMAGE_DEVICE, CRESPO_MODEM_IMAGE_SIZE, 0x1000, 0);
++    /* Try alternative modem image device first as the main one may exist
++     * even when it doesn't contain the modem
++     */
++    modem_image_data = file_data_read(CRESPO_ALT_MODEM_IMAGE_DEVICE, CRESPO_XMM_MODEM_IMAGE_SIZE, 0x1000, 0);
++    if (modem_image_data == NULL)
++        modem_image_data = file_data_read(CRESPO_MODEM_IMAGE_DEVICE, CRESPO_XMM_MODEM_IMAGE_SIZE, 0x1000, 0);
++
+     if (modem_image_data == NULL) {
+         ipc_client_log(client, "Reading modem image data failed");
+         goto error;
+@@ -73,6 +81,9 @@ int crespo_boot(struct ipc_client *client)
+     ipc_client_log(client, "Reset modem");
+ 
+     serial_fd = open(CRESPO_MODEM_SERIAL_DEVICE, O_RDWR | O_NDELAY);
++    if (serial_fd < 0 && errno == ENOENT)
++        serial_fd = open(CRESPO_ALT_MODEM_SERIAL_DEVICE, O_RDWR | O_NDELAY);
++
+     if (serial_fd < 0) {
+         ipc_client_log(client, "Opening serial failed");
+         goto error;
+@@ -94,7 +105,7 @@ int crespo_boot(struct ipc_client *client)
+ 
+     lseek(modem_ctl_fd, 0, SEEK_SET);
+ 
+-    rc = xmm616_firmware_send(client, modem_ctl_fd, NULL, (void *) p, CRESPO_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE);
++    rc = xmm616_firmware_send(client, modem_ctl_fd, NULL, (void *) p, CRESPO_XMM_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE);
+     if (rc < 0) {
+         ipc_client_log(client, "Sending XMM616 firmware failed");
+         goto error;
+@@ -129,6 +140,21 @@ complete:
+     return rc;
+ }
+ 
++int crespo_boot(struct ipc_client *client)
++{
++    int rc;
++
++    if (crespo_is_ste()) {
++        ipc_client_log(client, "Detected an STE M5730 modem");
++        rc = crespo_ste_boot(client);
++    } else {
++        ipc_client_log(client, "Detected an XMM6160 modem");
++        rc = crespo_xmm_boot(client);
++    }
++
++    return rc;
++}
++
+ int crespo_fmt_send(struct ipc_client *client, struct ipc_message *message)
+ {
+     struct ipc_fmt_header header;
+@@ -444,7 +470,7 @@ int crespo_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
+     return rc;
+ }
+ 
+-int crespo_power_on(void *data)
++int crespo_xmm_power_on(void *data)
+ {
+     int fd;
+     int rc;
+@@ -463,6 +489,14 @@ int crespo_power_on(void *data)
+     return 0;
+ }
+ 
++int crespo_power_on(void *data)
++{
++    if (crespo_is_ste())
++        return crespo_ste_power_on(data);
++
++    return crespo_xmm_power_on(data);
++}
++
+ int crespo_power_off(void *data)
+ {
+     int fd;
+@@ -594,6 +628,7 @@ struct ipc_client_gprs_specs crespo_gprs_specs = {
+ };
+ 
+ struct ipc_client_nv_data_specs crespo_nv_data_specs = {
++    .efs_root = CRESPO_EFS_ROOT,
+     .nv_data_path = XMM616_NV_DATA_PATH,
+     .nv_data_md5_path = XMM616_NV_DATA_MD5_PATH,
+     .nv_data_backup_path = XMM616_NV_DATA_BACKUP_PATH,
+diff --git a/samsung-ipc/devices/crespo/crespo.h b/samsung-ipc/devices/crespo/crespo.h
+index 97dff96..b02dd97 100644
+--- a/samsung-ipc/devices/crespo/crespo.h
++++ b/samsung-ipc/devices/crespo/crespo.h
+@@ -20,13 +20,16 @@
+ #ifndef __CRESPO_H__
+ #define __CRESPO_H__
+ 
+-#define CRESPO_MODEM_IMAGE_SIZE                                 0xD80000
++#define CRESPO_XMM_MODEM_IMAGE_SIZE                             0xD80000
++#define CRESPO_STE_MODEM_IMAGE_SIZE                             0xE05000
+ #define CRESPO_PSI_SIZE                                         0x5000
+ #define CRESPO_MODEM_CTL_NV_DATA_OFFSET                         0xD80000
+ #define CRESPO_BUFFER_LENGTH                                    0x50000
+ 
+ #define CRESPO_MODEM_IMAGE_DEVICE               "/dev/mtd/mtd5ro"
++#define CRESPO_ALT_MODEM_IMAGE_DEVICE           "/radio/modem.bin"
+ #define CRESPO_MODEM_SERIAL_DEVICE              "/dev/s3c2410_serial3"
++#define CRESPO_ALT_MODEM_SERIAL_DEVICE          "/dev/ttySAC3"
+ #define CRESPO_MODEM_CTL_DEVICE                 "/dev/modem_ctl"
+ #define CRESPO_MODEM_FMT_DEVICE                 "/dev/modem_fmt"
+ #define CRESPO_MODEM_RFS_DEVICE                 "/dev/modem_rfs"
+@@ -34,6 +37,8 @@
+ #define CRESPO_GPRS_IFACE_PREFIX                "rmnet"
+ #define CRESPO_GPRS_IFACE_COUNT                                 3
+ 
++#define CRESPO_EFS_ROOT                         "/efs/root"
++
+ struct crespo_transport_data {
+     int fd;
+ };
+diff --git a/samsung-ipc/devices/crespo/crespo_modem_ctl.h b/samsung-ipc/devices/crespo/crespo_modem_ctl.h
+index 7c23165..355b5ed 100644
+--- a/samsung-ipc/devices/crespo/crespo_modem_ctl.h
++++ b/samsung-ipc/devices/crespo/crespo_modem_ctl.h
+@@ -24,6 +24,9 @@
+ #define IOCTL_MODEM_SEND		_IO('o', 0x23)
+ #define IOCTL_MODEM_RECV		_IO('o', 0x24)
+ 
++#define IOCTL_MODEM_WAIT_FOR_SBL	_IO('o', 0x25)
++#define IOCTL_MODEM_BINARY_LOAD		_IO('o', 0x26)
++
+ struct modem_io {
+ 	uint32_t size;
+ 	uint32_t id;
+diff --git a/samsung-ipc/devices/crespo/crespo_ste_m5730.c b/samsung-ipc/devices/crespo/crespo_ste_m5730.c
 new file mode 100644
-index 0000000..e6e3e0e
+index 0000000..8baac4b
 --- /dev/null
-+++ b/samsung-ipc/devices/galaxys4g/galaxys4g.c
-@@ -0,0 +1,981 @@
++++ b/samsung-ipc/devices/crespo/crespo_ste_m5730.c
+@@ -0,0 +1,543 @@
 +/*
 + * This file is part of libsamsung-ipc.
 + *
@@ -779,6 +247,7 @@ index 0000000..e6e3e0e
 +#include <stdio.h>
 +#include <stdint.h>
 +#include <unistd.h>
++#include <errno.h>
 +#include <stdbool.h>
 +#include <string.h>
 +#include <unistd.h>
@@ -791,10 +260,11 @@ index 0000000..e6e3e0e
 +#include <checksum.h>
 +#include <ipc.h>
 +
-+#include "galaxys4g_modem_ctl.h"
++#include "crespo_modem_ctl.h"
 +
 +#include "xmm616.h"
-+#include "galaxys4g.h"
++#include "ste_m5730.h"
++#include "crespo.h"
 +
 +const char* const send_protroms[] = {
 +    "\x64",
@@ -802,6 +272,26 @@ index 0000000..e6e3e0e
 +    "\x64\x88\x01\x04",
 +    "\x04\x00",
 +};
++
++int crespo_is_ste(void)
++{
++    char buf[10];
++    int fd, rc;
++
++    fd = open(CRESPO_MODEM_TYPE_SYSFS, O_RDONLY);
++    if (fd < 0)
++        return 0;
++
++    rc = read(fd, buf, 10);
++    if (strncmp(buf, "ste", 10))
++        rc = 1;
++    else
++        rc = 0;
++
++    close(fd);
++
++    return rc;
++}
 +
 +int m5730_write_baud_change(struct ipc_client *client, int serial_fd)
 +{
@@ -977,7 +467,7 @@ index 0000000..e6e3e0e
 +    return 0;
 +}
 +
-+int load_modem_serial_part(int serial_fd, struct galaxys4g_modem_data_header header, int modem_fd)
++int ste_load_modem_serial_part(int serial_fd, struct crespo_modem_data_header header, int modem_fd)
 +{
 +    int rc;
 +    unsigned short xmodem_crc;
@@ -1008,15 +498,16 @@ index 0000000..e6e3e0e
 +    return -1;
 +}
 +
-+int load_modem_serial(struct ipc_client *client, int serial_fd)
++int ste_load_modem_serial(struct ipc_client *client, int serial_fd)
 +{
-+    struct galaxys4g_modem_data_header header;
++    struct crespo_modem_data_header header;
 +    int modem_fd;
 +    int rc;
 +
-+    modem_fd = open(GALAXYS4G_MODEM_IMAGE_DEVICE, O_RDONLY);
++    /* Always use alternate image device for STE modems */
++    modem_fd = open(CRESPO_ALT_MODEM_IMAGE_DEVICE, O_RDONLY);
 +    if (modem_fd < 0) {
-+        ipc_client_log(client, "Failed to open %s, error %d", GALAXYS4G_MODEM_IMAGE_DEVICE, modem_fd);
++        ipc_client_log(client, "Failed to open %s", CRESPO_ALT_MODEM_IMAGE_DEVICE);
 +        return -1;
 +    }
 +
@@ -1028,7 +519,7 @@ index 0000000..e6e3e0e
 +    header.len = 871;
 +    header.type = 1;
 +
-+    rc = load_modem_serial_part(serial_fd, header, modem_fd);
++    rc = ste_load_modem_serial_part(serial_fd, header, modem_fd);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to send modem.bin part 1 to serial");
 +        goto error;
@@ -1051,7 +542,7 @@ index 0000000..e6e3e0e
 +    header.len = 10653;
 +    header.type = 3;
 +
-+    rc = load_modem_serial_part(serial_fd, header, modem_fd);
++    rc = ste_load_modem_serial_part(serial_fd, header, modem_fd);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to send modem.bin part 2 to serial");
 +        goto error;
@@ -1076,7 +567,7 @@ index 0000000..e6e3e0e
 +    return -1;
 +}
 +
-+int galaxys4g_configure_serial(int serial_fd, speed_t baud_rate)
++int crespo_ste_configure_serial(int serial_fd, speed_t baud_rate)
 +{
 +    int ret, ctrl;
 +    struct termios termios;
@@ -1107,7 +598,7 @@ index 0000000..e6e3e0e
 +    return 0;
 +}
 +
-+int galaxys4g_boot(struct ipc_client *client)
++int crespo_ste_boot(struct ipc_client *client)
 +{
 +
 +    int modem_ctl_fd = -1;
@@ -1117,26 +608,28 @@ index 0000000..e6e3e0e
 +    if (client == NULL)
 +        return -1;
 +
-+    ipc_client_log(client, "Starting galaxys4g modem boot");
++    ipc_client_log(client, "Starting crespo modem boot");
 +
-+    modem_ctl_fd = open(GALAXYS4G_MODEM_CTL_DEVICE, O_RDWR | O_NDELAY);
++    modem_ctl_fd = open(CRESPO_MODEM_CTL_DEVICE, O_RDWR | O_NDELAY);
 +    if (modem_ctl_fd < 0) {
 +        ipc_client_log(client, "Opening modem ctl failed");
 +        goto error;
 +    }
 +    ipc_client_log(client, "Opened modem ctl");
 +
-+init_device:
 +    /* Initialize serial */
-+    serial_fd = open(GALAXYS4G_MODEM_SERIAL_DEVICE, O_RDWR);
++    serial_fd = open(CRESPO_MODEM_SERIAL_DEVICE, O_RDWR);
++    if (serial_fd < 0 && errno == ENOENT)
++        serial_fd = open(CRESPO_ALT_MODEM_SERIAL_DEVICE, O_RDWR);
++
 +    if (serial_fd < 0) {
-+        ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_SERIAL_DEVICE);
++        ipc_client_log(client, "Failed to open serial device");
 +        rc = -1;
 +        goto error;
 +    }
 +
 +    /* Configure serial */
-+    rc = galaxys4g_configure_serial(serial_fd, B9600);
++    rc = crespo_ste_configure_serial(serial_fd, B9600);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to configure serial");
 +        goto error;
@@ -1160,41 +653,44 @@ index 0000000..e6e3e0e
 +    rc = m5730_write_baud_change(client, serial_fd);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to change baud rate");
-+        goto error_retry;
++        goto error;
 +    }
 +
 +    /* Close and re-open serial, setting to 115200 baud */
 +    close(serial_fd);
-+    serial_fd = open(GALAXYS4G_MODEM_SERIAL_DEVICE, O_RDWR);
++    serial_fd = open(CRESPO_MODEM_SERIAL_DEVICE, O_RDWR);
++    if (serial_fd < 0 && errno == ENOENT)
++        serial_fd = open(CRESPO_ALT_MODEM_SERIAL_DEVICE, O_RDWR);
++
 +    if (serial_fd < 0) {
-+        ipc_client_log(client, "Failed to open %s", GALAXYS4G_MODEM_SERIAL_DEVICE);
-+        goto error_retry;
++        ipc_client_log(client, "Failed to open serial device");
++        goto error;
 +    }
 +
-+    rc = galaxys4g_configure_serial(serial_fd, B115200);
++    rc = crespo_ste_configure_serial(serial_fd, B115200);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to configure serial");
-+        goto error_retry;
++        goto error;
 +    }
 +
 +    /* Connect to M5730 */
 +    rc = m5730_connect_ccpu(client, serial_fd);
 +    if (rc < 0) {
 +        ipc_client_log(client, "Failed to connect to CCPU, error %d", serial_fd);
-+        goto error_retry;
++        goto error;
 +    }
 +
 +    /* Load modem.bin part to serial */
-+    rc = load_modem_serial(client, serial_fd);
++    rc = ste_load_modem_serial(client, serial_fd);
 +    if (rc) {
 +        ipc_client_log(client, "Failed to load modem.bin to serial");
-+        goto error_retry;
++        goto error;
 +    }
 +
 +    rc = 0;
 +    goto complete;
 +
-+error_retry:
++error:
 +    /* Flush serial */
 +    if (serial_fd >= 0) {
 +        rc = ioctl(serial_fd, TCFLSH, TCIOFLUSH);
@@ -1204,9 +700,6 @@ index 0000000..e6e3e0e
 +        close(serial_fd);
 +    }
 +
-+    goto init_device;
-+
-+error:
 +    rc = -1;
 +
 +complete:
@@ -1219,343 +712,20 @@ index 0000000..e6e3e0e
 +    return rc;
 +}
 +
-+int galaxys4g_fmt_send(struct ipc_client *client, struct ipc_message *message)
-+{
-+    struct ipc_fmt_header header;
-+    struct modem_io mio;
-+    int rc;
-+
-+    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-+        return -1;
-+
-+    ipc_fmt_header_setup(&header, message);
-+
-+    memset(&mio, 0, sizeof(struct modem_io));
-+    mio.size = message->size + sizeof(struct ipc_fmt_header);
-+    mio.data = calloc(1, mio.size);
-+
-+    memcpy(mio.data, &header, sizeof(struct ipc_fmt_header));
-+    if (message->data != NULL && message->size > 0)
-+        memcpy((void *) ((unsigned char *) mio.data + sizeof(struct ipc_fmt_header)), message->data, message->size);
-+
-+    ipc_client_log_send(client, message, __func__);
-+
-+    rc = client->handlers->write(client->handlers->transport_data, (void *) &mio, sizeof(struct modem_io));
-+    if (rc < 0) {
-+        ipc_client_log(client, "Writing FMT data failed");
-+        goto error;
-+    }
-+
-+    rc = 0;
-+    goto complete;
-+
-+error:
-+    rc = -1;
-+
-+complete:
-+    if (mio.data != NULL)
-+        free(mio.data);
-+
-+    return rc;
-+}
-+
-+int galaxys4g_fmt_recv(struct ipc_client *client, struct ipc_message *message)
-+{
-+    struct ipc_fmt_header *header;
-+    struct modem_io mio;
-+    int rc;
-+
-+    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-+        return -1;
-+
-+    memset(&mio, 0, sizeof(struct modem_io));
-+    mio.size = GALAXYS4G_BUFFER_LENGTH;
-+    mio.data = calloc(1, mio.size);
-+
-+    rc = client->handlers->read(client->handlers->transport_data, &mio, sizeof(struct modem_io) + mio.size);
-+    if (rc < 0) {
-+        ipc_client_log(client, "Reading FMT data failed, rc = %d", rc);
-+        goto error;
-+    } else if (mio.data == NULL) {
-+        ipc_client_log(client, "Reading FMT data failed, data is NULL");
-+        goto error;
-+    } else if (mio.size < sizeof(struct ipc_fmt_header)) {
-+        ipc_client_log(client, "Reading FMT data failed, mio.size too small");
-+        goto error;
-+    } else if (mio.size > GALAXYS4G_BUFFER_LENGTH) {
-+        ipc_client_log(client, "Reading FMT data failed, mio.size too big");
-+        goto error;
-+    }
-+
-+    header = (struct ipc_fmt_header *) mio.data;
-+
-+    ipc_fmt_message_setup(header, message);
-+
-+    if (mio.size > sizeof(struct ipc_fmt_header)) {
-+        message->size = mio.size - sizeof(struct ipc_fmt_header);
-+        message->data = calloc(1, message->size);
-+
-+        memcpy(message->data, (void *) ((unsigned char *) mio.data + sizeof(struct ipc_fmt_header)), message->size);
-+    }
-+
-+    ipc_client_log_recv(client, message, __func__);
-+
-+    rc = 0;
-+    goto complete;
-+
-+error:
-+    rc = -1;
-+
-+complete:
-+    if (mio.data != NULL)
-+        free(mio.data);
-+
-+    return rc;
-+}
-+
-+int galaxys4g_rfs_send(struct ipc_client *client, struct ipc_message *message)
-+{
-+    struct modem_io mio;
-+    int rc;
-+
-+    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-+        return -1;
-+
-+    memset(&mio, 0, sizeof(struct modem_io));
-+    mio.id = message->mseq;
-+    mio.cmd = IPC_INDEX(message->command);
-+    mio.size = message->size;
-+
-+    if (message->data != NULL && message->size > 0) {
-+        mio.data = calloc(1, mio.size);
-+
-+        memcpy(mio.data, message->data, message->size);
-+    }
-+
-+    ipc_client_log_send(client, message, __func__);
-+
-+    rc = client->handlers->write(client->handlers->transport_data, (void *) &mio, sizeof(struct modem_io));
-+    if (rc < 0) {
-+        ipc_client_log(client, "Writing RFS data failed");
-+        goto error;
-+    }
-+
-+    rc = 0;
-+    goto complete;
-+
-+error:
-+    rc = -1;
-+
-+complete:
-+    if (mio.data != NULL)
-+        free(mio.data);
-+
-+    return rc;
-+}
-+
-+int galaxys4g_rfs_recv(struct ipc_client *client, struct ipc_message *message)
-+{
-+    struct modem_io mio;
-+    int rc;
-+
-+    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-+        return -1;
-+
-+    memset(&mio, 0, sizeof(struct modem_io));
-+    mio.size = GALAXYS4G_BUFFER_LENGTH;
-+    mio.data = calloc(1, mio.size);
-+
-+    rc = client->handlers->read(client->handlers->transport_data, &mio, sizeof(struct modem_io) + mio.size);
-+    if (rc < 0 || mio.data == NULL || mio.size <= 0 || mio.size > GALAXYS4G_BUFFER_LENGTH) {
-+        ipc_client_log(client, "Reading RFS data failed");
-+        goto error;
-+    }
-+
-+    memset(message, 0, sizeof(struct ipc_message));
-+    message->aseq = mio.id;
-+    message->command = IPC_COMMAND(IPC_GROUP_RFS, mio.cmd);
-+
-+    if (mio.size > 0) {
-+        message->size = mio.size;
-+        message->data = calloc(1, message->size);
-+
-+        memcpy(message->data, mio.data, message->size);
-+    }
-+
-+    ipc_client_log_recv(client, message, __func__);
-+
-+    rc = 0;
-+    goto complete;
-+
-+error:
-+    rc = -1;
-+
-+complete:
-+    if (mio.data != NULL)
-+        free(mio.data);
-+
-+    return rc;
-+}
-+
-+int galaxys4g_open(void *data, int type)
-+{
-+    struct galaxys4g_transport_data *transport_data;
-+    int fd;
-+
-+    if (data == NULL)
-+        return -1;
-+
-+    transport_data = (struct galaxys4g_transport_data *) data;
-+
-+    switch (type) {
-+        case IPC_CLIENT_TYPE_FMT:
-+            fd = open(GALAXYS4G_MODEM_FMT_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-+            break;
-+        case IPC_CLIENT_TYPE_RFS:
-+            fd = open(GALAXYS4G_MODEM_RFS_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-+            break;
-+        default:
-+            return -1;
-+    }
-+
-+    if (fd < 0)
-+        return -1;
-+
-+    transport_data->fd = fd;
-+
-+    return 0;
-+}
-+
-+int galaxys4g_close(void *data)
-+{
-+    struct galaxys4g_transport_data *transport_data;
-+    int fd;
-+
-+    if (data == NULL)
-+        return -1;
-+
-+    transport_data = (struct galaxys4g_transport_data *) data;
-+
-+    fd = transport_data->fd;
-+    if (fd < 0)
-+        return -1;
-+
-+    transport_data->fd = -1;
-+    close(fd);
-+
-+    return 0;
-+}
-+
-+int galaxys4g_read(void *data, void *buffer, size_t length)
-+{
-+    struct galaxys4g_transport_data *transport_data;
-+    int fd;
-+    int rc;
-+
-+    if (data == NULL || buffer == NULL || length == 0)
-+        return -1;
-+
-+    transport_data = (struct galaxys4g_transport_data *) data;
-+
-+    fd = transport_data->fd;
-+    if (fd < 0)
-+        return -1;
-+
-+    rc = ioctl(fd, IOCTL_MODEM_RECV, buffer);
-+    if (rc < 0)
-+        return -1;
-+
-+    return 0;
-+}
-+
-+int galaxys4g_write(void *data, const void *buffer, size_t length)
-+{
-+    struct galaxys4g_transport_data *transport_data;
-+    int fd;
-+    int rc;
-+
-+    if (data == NULL || buffer == NULL || length == 0)
-+        return -1;
-+
-+    transport_data = (struct galaxys4g_transport_data *) data;
-+
-+    fd = transport_data->fd;
-+    if (fd < 0)
-+        return -1;
-+
-+    rc = ioctl(fd, IOCTL_MODEM_SEND, buffer);
-+    if (rc < 0)
-+        return -1;
-+
-+    return 0;
-+}
-+
-+int galaxys4g_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
-+{
-+    struct galaxys4g_transport_data *transport_data;
-+    fd_set set;
-+    int fd;
-+    int fd_max;
-+    unsigned int i;
-+    unsigned int count;
-+    int rc;
-+
-+    if (data == NULL)
-+        return -1;
-+
-+    transport_data = (struct galaxys4g_transport_data *) data;
-+
-+    fd = transport_data->fd;
-+    if (fd < 0)
-+        return -1;
-+
-+    FD_ZERO(&set);
-+    FD_SET(fd, &set);
-+
-+    fd_max = fd;
-+
-+    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-+        for (i = 0; i < fds->count; i++) {
-+            if (fds->fds[i] >= 0) {
-+                FD_SET(fds->fds[i], &set);
-+
-+                if (fds->fds[i] > fd_max)
-+                    fd_max = fds->fds[i];
-+            }
-+        }
-+    }
-+
-+    rc = select(fd_max + 1, &set, NULL, NULL, timeout);
-+
-+    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-+        count = fds->count;
-+
-+        for (i = 0; i < fds->count; i++) {
-+            if (!FD_ISSET(fds->fds[i], &set)) {
-+                fds->fds[i] = -1;
-+                count--;
-+            }
-+        }
-+
-+        fds->count = count;
-+    }
-+
-+    return rc;
-+}
-+
-+int galaxys4g_power_on(void *data)
++int crespo_ste_power_on(void *data)
 +{
 +    void *modem_image_data = NULL;
 +    unsigned char *p;
 +    size_t wc = 0;
-+    int fd;
++    int fd = -1;
 +    int rc = -1;
 +
-+    modem_image_data = file_data_read(GALAXYS4G_MODEM_IMAGE_DEVICE, GALAXYS4G_MODEM_IMAGE_SIZE, 0x1000, 0);
++    /* Always use alternate image device for STE modems */
++    modem_image_data = file_data_read(CRESPO_ALT_MODEM_IMAGE_DEVICE, CRESPO_STE_MODEM_IMAGE_SIZE, 0x1000, 0);
 +    if (modem_image_data == NULL)
 +        goto error;
 +
-+    fd = open(GALAXYS4G_MODEM_CTL_DEVICE, O_RDWR);
++    fd = open(CRESPO_MODEM_CTL_DEVICE, O_RDWR);
 +    if (fd < 0)
 +        goto error;
 +
@@ -1565,12 +735,12 @@ index 0000000..e6e3e0e
 +
 +    p = (unsigned char *) modem_image_data;
 +
-+    p += GALAXYS4G_PSI_SIZE;
++    p += CRESPO_PSI_SIZE;
 +
 +    lseek(fd, 0, SEEK_SET);
 +
-+    while (wc < GALAXYS4G_MODEM_IMAGE_SIZE - GALAXYS4G_PSI_SIZE) {
-+        rc = write(fd, (void *) p, GALAXYS4G_MODEM_IMAGE_SIZE - GALAXYS4G_PSI_SIZE - wc);
++    while (wc < CRESPO_STE_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE) {
++        rc = write(fd, (void *) p, CRESPO_STE_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE - wc);
 +        if (rc <= 0)
 +            goto error;
 +
@@ -1588,159 +758,19 @@ index 0000000..e6e3e0e
 +    if (modem_image_data != NULL)
 +        free(modem_image_data);
 +
-+    close(fd);
++    if (fd >= 0)
++        close(fd);
++
 +    return rc;
 +}
 +
-+int galaxys4g_power_off(void *data)
-+{
-+    int fd;
-+    int rc;
-+
-+    fd = open(GALAXYS4G_MODEM_CTL_DEVICE, O_RDWR);
-+    if (fd < 0)
-+        return -1;
-+
-+    rc = ioctl(fd, IOCTL_MODEM_OFF);
-+
-+    close(fd);
-+
-+    if (rc < 0)
-+        return -1;
-+
-+    return 0;
-+}
-+
-+int galaxys4g_data_create(void **transport_data, void **power_data,
-+    void **gprs_data)
-+{
-+    if (transport_data == NULL)
-+        return -1;
-+
-+    *transport_data = calloc(1, sizeof(struct galaxys4g_transport_data));
-+
-+    return 0;
-+}
-+
-+int galaxys4g_data_destroy(void *transport_data, void *power_data, void *gprs_data)
-+{
-+    if (transport_data == NULL)
-+        return -1;
-+
-+    free(transport_data);
-+
-+    return 0;
-+}
-+
-+int galaxys4g_gprs_activate(void *data, unsigned int cid)
-+{
-+    return 0;
-+}
-+
-+int galaxys4g_gprs_deactivate(void *data, unsigned int cid)
-+{
-+    return 0;
-+}
-+
-+char *galaxys4g_gprs_get_iface_single(unsigned int cid)
-+{
-+    char *iface = NULL;
-+
-+    asprintf(&iface, "%s%d", GALAXYS4G_GPRS_IFACE_PREFIX, 0);
-+
-+    return iface;
-+}
-+
-+int galaxys4g_gprs_get_capabilities_single(struct ipc_client_gprs_capabilities *capabilities)
-+{
-+    if (capabilities == NULL)
-+        return -1;
-+
-+    capabilities->cid_count = 1;
-+
-+    return 0;
-+}
-+
-+char *galaxys4g_gprs_get_iface(unsigned int cid)
-+{
-+    char *iface = NULL;
-+
-+    if (cid > GALAXYS4G_GPRS_IFACE_COUNT)
-+        return NULL;
-+
-+    asprintf(&iface, "%s%d", GALAXYS4G_GPRS_IFACE_PREFIX, cid - 1);
-+
-+    return iface;
-+}
-+
-+int galaxys4g_gprs_get_capabilities(struct ipc_client_gprs_capabilities *capabilities)
-+{
-+    if (capabilities == NULL)
-+        return -1;
-+
-+    capabilities->cid_count = GALAXYS4G_GPRS_IFACE_COUNT;
-+
-+    return 0;
-+}
-+
-+struct ipc_client_ops galaxys4g_fmt_ops = {
-+    .boot = galaxys4g_boot,
-+    .send = galaxys4g_fmt_send,
-+    .recv = galaxys4g_fmt_recv,
-+};
-+
-+struct ipc_client_ops galaxys4g_rfs_ops = {
-+    .boot = NULL,
-+    .send = galaxys4g_rfs_send,
-+    .recv = galaxys4g_rfs_recv,
-+};
-+
-+struct ipc_client_handlers galaxys4g_handlers = {
-+    .open = galaxys4g_open,
-+    .close = galaxys4g_close,
-+    .read = galaxys4g_read,
-+    .write = galaxys4g_write,
-+    .poll = galaxys4g_poll,
-+    .transport_data = NULL,
-+    .power_on = galaxys4g_power_on,
-+    .power_off = galaxys4g_power_off,
-+    .power_data = NULL,
-+    .gprs_activate = galaxys4g_gprs_activate,
-+    .gprs_deactivate = galaxys4g_gprs_deactivate,
-+    .gprs_data = NULL,
-+    .data_create = galaxys4g_data_create,
-+    .data_destroy = galaxys4g_data_destroy,
-+};
-+
-+struct ipc_client_gprs_specs galaxys4g_gprs_specs_single = {
-+    .gprs_get_iface = galaxys4g_gprs_get_iface_single,
-+    .gprs_get_capabilities = galaxys4g_gprs_get_capabilities_single,
-+};
-+
-+struct ipc_client_gprs_specs galaxys4g_gprs_specs = {
-+    .gprs_get_iface = galaxys4g_gprs_get_iface,
-+    .gprs_get_capabilities = galaxys4g_gprs_get_capabilities,
-+};
-+
-+struct ipc_client_nv_data_specs galaxys4g_nv_data_specs = {
-+    .efs_root = GALAXYS4G_EFS_ROOT,
-+    .nv_data_path = GALAXYS4G_NV_DATA_PATH,
-+    /* Stock has MD5 disabled, but we will use it here regardless */
-+    .nv_data_md5_path = GALAXYS4G_NV_DATA_MD5_PATH,
-+    .nv_data_backup_path = GALAXYS4G_NV_DATA_BACKUP_PATH,
-+    .nv_data_backup_md5_path = GALAXYS4G_NV_DATA_BACKUP_MD5_PATH,
-+    .nv_data_secret = XMM616_NV_DATA_SECRET,
-+    .nv_data_size = XMM616_NV_DATA_SIZE,
-+    .nv_data_chunk_size = XMM616_NV_DATA_CHUNK_SIZE,
-+};
-+
 +// vim:ts=4:sw=4:expandtab
-diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g.h b/samsung-ipc/devices/galaxys4g/galaxys4g.h
+diff --git a/samsung-ipc/devices/crespo/ste_m5730.h b/samsung-ipc/devices/crespo/ste_m5730.h
 new file mode 100644
-index 0000000..289a660
+index 0000000..c6e41de
 --- /dev/null
-+++ b/samsung-ipc/devices/galaxys4g/galaxys4g.h
-@@ -0,0 +1,65 @@
++++ b/samsung-ipc/devices/crespo/ste_m5730.h
+@@ -0,0 +1,36 @@
 +/*
 + * This file is part of libsamsung-ipc.
 + *
@@ -1760,138 +790,937 @@ index 0000000..289a660
 + * along with libsamsung-ipc.  If not, see <http://www.gnu.org/licenses/>.
 + */
 +
-+#ifndef __GALAXYS4G_H__
-+#define __GALAXYS4G_H__
++int crespo_is_ste(void);
++int crespo_ste_boot(struct ipc_client *client);
++int crespo_ste_power_on(void *data);
 +
-+#define GALAXYS4G_MODEM_IMAGE_SIZE                                 0xE05000
-+#define GALAXYS4G_PSI_SIZE                                         0x5000
-+#define GALAXYS4G_BUFFER_LENGTH                                    0x50000
-+
-+#define GALAXYS4G_MODEM_IMAGE_DEVICE               "/radio/modem.bin"
-+#define GALAXYS4G_MODEM_SERIAL_DEVICE              "/dev/s3c2410_serial3"
-+#define GALAXYS4G_MODEM_CTL_DEVICE                 "/dev/modem_ctl"
-+#define GALAXYS4G_MODEM_FMT_DEVICE                 "/dev/modem_fmt"
-+#define GALAXYS4G_MODEM_RFS_DEVICE                 "/dev/modem_rfs"
-+
-+#define GALAXYS4G_GPRS_IFACE_PREFIX                "rmnet"
-+#define GALAXYS4G_GPRS_IFACE_COUNT                                 3
-+
-+#define GALAXYS4G_EFS_ROOT                         "/efs/root"
-+#define GALAXYS4G_NV_DATA_PATH                     "/efs/root/afs/settings/nv_data.bin"
-+#define GALAXYS4G_NV_DATA_MD5_PATH                 "/efs/root/afs/settings/nv_data.bin.md5"
-+#define GALAXYS4G_NV_DATA_BACKUP_PATH              "/efs/root/afs/settings/.nv_data.bak"
-+#define GALAXYS4G_NV_DATA_BACKUP_MD5_PATH          "/efs/root/afs/settings/.nv_data.bak.md5"
++#define CRESPO_MODEM_TYPE_SYSFS        "/sys/class/misc/modem_ctl/type"
 +
 +/* This is prepended to each message sent via serial */
 +#define SERIAL_ACK 4008639402U
 +
-+struct galaxys4g_modem_data_header {
++struct crespo_modem_data_header {
 +    unsigned int serial_ack;
 +    char padding;
 +    unsigned short len;
 +    char type;
 +} __attribute__((__packed__));
 +
-+struct galaxys4g_transport_data {
-+    int fd;
-+};
 +
-+extern struct ipc_client_ops galaxys4g_fmt_ops;
-+extern struct ipc_client_ops galaxys4g_rfs_ops;
-+extern struct ipc_client_handlers galaxys4g_handlers;
-+extern struct ipc_client_gprs_specs galaxys4g_gprs_specs_single;
-+extern struct ipc_client_gprs_specs galaxys4g_gprs_specs;
-+extern struct ipc_client_nv_data_specs galaxys4g_nv_data_specs;
+diff --git a/samsung-ipc/ipc_devices.c b/samsung-ipc/ipc_devices.c
+index ad7d23c..f0d4461 100644
+--- a/samsung-ipc/ipc_devices.c
++++ b/samsung-ipc/ipc_devices.c
+@@ -44,6 +44,16 @@ struct ipc_device_desc ipc_devices[] = {
+         .nv_data_specs = &crespo_nv_data_specs,
+     },
+     {
++        .name = "crespo",
++        .board_name = "Samsung S5PC110/S5PV210-based board",
++        .kernel_version = NULL,
++        .fmt_ops = &crespo_fmt_ops,
++        .rfs_ops = &crespo_rfs_ops,
++        .handlers = &crespo_handlers,
++        .gprs_specs = &crespo_gprs_specs,
++        .nv_data_specs = &crespo_nv_data_specs,
++    },
++    {
+         .name = "aries",
+         .board_name = "aries",
+         .kernel_version = NULL,
+-- 
+2.11.0
+
+
+From f0283623b695a9d7febd5205b10729b4bf6e1f54 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Mon, 31 Dec 2018 12:36:17 -0800
+Subject: [PATCH 2/3] ipc-modem: Add support for RFS commands
+
+Some devices may need access to RFS commands before they connect
+---
+ Android.mk        |   4 +-
+ tools/Makefile.am |   4 +-
+ tools/ipc-modem.c | 103 ++++++++-
+ tools/rfs.c       | 610 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ tools/rfs.h       |   7 +
+ 5 files changed, 724 insertions(+), 4 deletions(-)
+ create mode 100644 tools/rfs.c
+ create mode 100644 tools/rfs.h
+
+diff --git a/Android.mk b/Android.mk
+index 541c63a..4a52f9a 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -101,12 +101,14 @@ include $(BUILD_STATIC_LIBRARY)
+ 
+ include $(CLEAR_VARS)
+ 
+-LOCAL_SRC_FILES := tools/ipc-modem.c
++LOCAL_SRC_FILES := tools/ipc-modem.c \
++	tools/rfs.c
+ 
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
+ 
+ LOCAL_STATIC_LIBRARIES := libsamsung-ipc
+ LOCAL_SHARED_LIBRARIES := libutils libcrypto
++LOCAL_LDLIBS := -lpthread
+ 
+ LOCAL_MODULE := ipc-modem
+ LOCAL_MODULE_TAGS := optional
+diff --git a/tools/Makefile.am b/tools/Makefile.am
+index 9336a64..d559be5 100644
+--- a/tools/Makefile.am
++++ b/tools/Makefile.am
+@@ -10,9 +10,9 @@ bin_PROGRAMS = \
+ 	nv_data-md5 \
+ 	$(NULL)
+ 
+-ipc_modem_SOURCES = ipc-modem.c
++ipc_modem_SOURCES = ipc-modem.c rfs.c
+ ipc_modem_LDADD = $(top_builddir)/samsung-ipc/libsamsung-ipc.la
+-ipc_modem_LDFLAGS =
++ipc_modem_LDFLAGS = -lpthread
+ 
+ ipc_test_SOURCES = ipc-test.c
+ ipc_test_LDADD = $(top_builddir)/samsung-ipc/libsamsung-ipc.la
+diff --git a/tools/ipc-modem.c b/tools/ipc-modem.c
+index 935677b..92fd05f 100644
+--- a/tools/ipc-modem.c
++++ b/tools/ipc-modem.c
+@@ -23,6 +23,7 @@
+ #include <unistd.h>
+ #include <stdint.h>
+ #include <stdbool.h>
++#include <signal.h>
+ #include <termios.h>
+ #include <fcntl.h>
+ #include <string.h>
+@@ -34,6 +35,8 @@
+ 
+ #include <samsung-ipc.h>
+ 
++#include "rfs.h"
 +
-+#endif
+ #define MODEM_STATE_LPM     0
+ #define MODEM_STATE_NORMAL  2
+ #define MODEM_STATE_SIM_OK  4
+@@ -340,6 +343,29 @@ void modem_response_net(struct ipc_client *client, struct ipc_message *resp)
+     }
+ }
+ 
++void modem_response_handle_rfs(struct ipc_client *client, struct ipc_message *resp)
++{
++    switch(resp->command)
++    {
++        case IPC_RFS_NV_READ_ITEM:
++            ipc_rfs_nv_read_item(client, resp);
++            break;
++        case IPC_RFS_NV_WRITE_ITEM:
++            ipc_rfs_nv_write_item(client, resp);
++            break;
++        case IPC_RFS_GET_FILE_INFO:
++        case IPC_RFS_GET_HANDLE_INFO:
++            ipc_rfs_file_info(client, resp);
++            break;
++        case IPC_RFS_READ_DIR:
++            ipc_rfs_read_dir(client, resp);
++            break;
++        default:
++            ipc_rfs_generic_io(client, resp);
++            break;
++    }
++}
 +
-+// vim:ts=4:sw=4:expandtab
-diff --git a/samsung-ipc/devices/galaxys4g/galaxys4g_modem_ctl.h b/samsung-ipc/devices/galaxys4g/galaxys4g_modem_ctl.h
+ void modem_response_handle(struct ipc_client *client, struct ipc_message *resp)
+ {
+     switch(IPC_GROUP(resp->command))
+@@ -363,6 +389,9 @@ void modem_response_handle(struct ipc_client *client, struct ipc_message *resp)
+             if(in_call)
+                 modem_snd_no_mic_mute(client);
+         break;
++        case IPC_GROUP_RFS:
++            modem_response_handle_rfs(client, resp);
++        break;
+     }
+ }
+ 
+@@ -397,6 +426,36 @@ int modem_read_loop(struct ipc_client *client)
+     return 0;
+ }
+ 
++int modem_rfs_read_loop(struct ipc_client *client)
++{
++    struct ipc_message resp;
++    int rc;
++
++    memset(&resp, 0, sizeof(resp));
++
++    while(1) {
++        usleep(3000);
++
++        rc = ipc_client_poll(client, NULL, NULL);
++        if (rc < 0) {
++            continue;
++        }
++
++        rc = ipc_client_recv(client, &resp);
++        if(rc < 0) {
++            printf("[E] Can't RECV from modem: please run this again\n");
++            break;
++        }
++
++        modem_response_handle(client, &resp);
++
++        if(resp.data != NULL)
++            free(resp.data);
++    }
++
++    return 0;
++}
++
+ void modem_log_handler(void *user_data, const char *msg)
+ {
+     int i, l;
+@@ -456,6 +515,42 @@ int modem_stop(struct ipc_client *client)
+     return 0;
+ }
+ 
++void *rfs_thread(void *vargp)
++{
++    struct ipc_client *client_rfs;
++    int rc;
++
++    client_rfs = ipc_client_create(IPC_CLIENT_TYPE_RFS);
++
++    if (client_rfs == 0) {
++        printf("[E] Could not create IPC client; aborting ...\n");
++        return NULL;
++    }
++
++    rc = ipc_client_data_create(client_rfs);
++    if (rc) {
++        printf("[E] Failed to create RFS client data; aborting ... \n");
++        goto err_data_create;
++    }
++
++    ipc_client_log_callback_register(client_rfs, modem_log_handler, NULL);
++
++    rc = ipc_client_open(client_rfs);
++    if (rc) {
++        printf("[E] Failed to open RFS client; aborting ... \n");
++        goto err_data_create;
++    }
++
++    printf("[1] Starting modem_read_loop on RFS client\n");
++    modem_read_loop(client_rfs);
++
++    ipc_client_close(client_rfs);
++err_data_create:
++    ipc_client_destroy(client_rfs);
++
++    return NULL;
++}
++
+ void print_help()
+ {
+     printf("usage: ipc-modem <command>\n");
+@@ -476,6 +571,7 @@ int main(int argc, char *argv[])
+     int opt_i = 0;
+     int rc = -1;
+     int debug = 0;
++    pthread_t thread_rfs;
+ 
+     struct option opt_l[] = {
+         {"help",    no_argument,        0,  0 },
+@@ -545,15 +641,20 @@ int main(int argc, char *argv[])
+             printf("[0] Starting modem on FMT client\n");
+             rc = modem_start(client_fmt);
+             if(rc < 0) {
+-                printf("[E] Something went wrong\n");
++                printf("[E] Something went wrong with FMT client\n");
+                 modem_stop(client_fmt);
+                 return 1;
+             }
+ 
++            pthread_create(&thread_rfs, NULL, rfs_thread, NULL);
++
+             printf("[1] Starting modem_read_loop on FMT client\n");
+             modem_read_loop(client_fmt);
+ 
+             modem_stop(client_fmt);
++
++            pthread_kill(thread_rfs, 9);
++            pthread_join(thread_rfs, NULL);
+         } else {
+             printf("[E] Unknown argument: '%s'\n", argv[optind]);
+             print_help();
+diff --git a/tools/rfs.c b/tools/rfs.c
 new file mode 100644
-index 0000000..355b5ed
+index 0000000..2a94808
 --- /dev/null
-+++ b/samsung-ipc/devices/galaxys4g/galaxys4g_modem_ctl.h
-@@ -0,0 +1,47 @@
++++ b/tools/rfs.c
+@@ -0,0 +1,610 @@
 +/*
-+ * Copyright (C) 2010 Google, Inc.
-+ * Copyright (C) 2010 Samsung Electronics.
++ * This file is part of Samsung-RIL.
 + *
-+ * This software is licensed under the terms of the GNU General Public
-+ * License version 2, as published by the Free Software Foundation, and
-+ * may be copied, distributed, and modified under those terms.
++ * Copyright (C) 2011-2014 Paul Kocialkowski <contact@paulk.fr>
 + *
-+ * This program is distributed in the hope that it will be useful,
++ * Samsung-RIL is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * Samsung-RIL is distributed in the hope that it will be useful,
 + * but WITHOUT ANY WARRANTY; without even the implied warranty of
 + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 + * GNU General Public License for more details.
 + *
++ * You should have received a copy of the GNU General Public License
++ * along with Samsung-RIL.  If not, see <http://www.gnu.org/licenses/>.
 + */
 +
-+#ifndef __MODEM_CONTROL_H__
-+#define __MODEM_CONTROL_H__
++#include <dirent.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++#include <string.h>
++#include <limits.h>     /* PATH_MAX */
 +
-+#define IOCTL_MODEM_RAMDUMP             _IO('o', 0x19)
-+#define IOCTL_MODEM_RESET               _IO('o', 0x20)
-+#define IOCTL_MODEM_START               _IO('o', 0x21)
-+#define IOCTL_MODEM_OFF                 _IO('o', 0x22)
++#include <errno.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
 +
-+#define IOCTL_MODEM_SEND		_IO('o', 0x23)
-+#define IOCTL_MODEM_RECV		_IO('o', 0x24)
++#include "rfs.h"
 +
-+#define IOCTL_MODEM_WAIT_FOR_SBL	_IO('o', 0x25)
-+#define IOCTL_MODEM_BINARY_LOAD		_IO('o', 0x26)
++int ipc_rfs_nv_read_item(struct ipc_client *client, struct ipc_message *message)
++{
++	struct ipc_rfs_nv_read_item_response_header response_header;
++	struct ipc_rfs_nv_read_item_request_data *data;
++	struct ipc_rfs_data *ipc_rfs_data;
++	void *response_data = NULL;
++	size_t response_size = 0;
++	void *nv_data = NULL;
++	int rc;
 +
-+struct modem_io {
-+	uint32_t size;
-+	uint32_t id;
-+	uint32_t cmd;
-+	void *data;
-+};
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_nv_read_item_request_data))
++		return -1;
 +
-+/* platform data */
-+struct modemctl_data {
-+	const char *name;
-+	unsigned gpio_phone_active;
-+	unsigned gpio_pda_active;
-+	unsigned gpio_cp_reset;
-+	unsigned gpio_phone_on;
-+	bool is_cdma_modem; /* 1:CDMA Modem */
-+};
++	data = (struct ipc_rfs_nv_read_item_request_data *) message->data;
 +
-+#endif
-diff --git a/samsung-ipc/ipc_devices.c b/samsung-ipc/ipc_devices.c
-index ad7d23c..7dab346 100644
---- a/samsung-ipc/ipc_devices.c
-+++ b/samsung-ipc/ipc_devices.c
-@@ -64,6 +64,16 @@ struct ipc_device_desc ipc_devices[] = {
-         .nv_data_specs = &aries_nv_data_specs,
-     },
-     {
-+        .name = "galaxys4g",
-+        .board_name = "aries",
-+        .kernel_version = NULL,
-+        .fmt_ops = &galaxys4g_fmt_ops,
-+        .rfs_ops = &galaxys4g_rfs_ops,
-+        .handlers = &galaxys4g_handlers,
-+        .gprs_specs = &galaxys4g_gprs_specs,
-+        .nv_data_specs = &galaxys4g_nv_data_specs,
-+    },
-+    {
-         .name = "galaxys2",
-         .board_name = "smdk4210",
-         .kernel_version = NULL,
-diff --git a/samsung-ipc/ipc_devices.h b/samsung-ipc/ipc_devices.h
-index a7a6098..f4ce84f 100644
---- a/samsung-ipc/ipc_devices.h
-+++ b/samsung-ipc/ipc_devices.h
-@@ -22,6 +22,7 @@
++	memset(&response_header, 0, sizeof(response_header));
++
++	nv_data = ipc_nv_data_read(client, data->length, data->offset);
++	if (nv_data == NULL) {
++		printf("Reading %d nv_data bytes at offset 0x%x failed", data->length, data->offset);
++
++		response_header.confirm = 0;
++
++		rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_READ_ITEM, IPC_TYPE_RESP, (void *) &response_header, sizeof(response_header));
++		if (rc < 0)
++			goto complete;
++
++		goto complete;
++	}
++
++	printf("Read %d nv_data bytes at offset 0x%x", data->length, data->offset);
++
++	response_header.confirm = 1;
++	response_header.offset = data->offset;
++	response_header.length = data->length;
++
++	response_size = ipc_rfs_nv_data_item_size_setup(&response_header, nv_data, data->length);
++	if (response_size == 0)
++		goto complete;
++
++	response_data = ipc_rfs_nv_read_item_setup(&response_header, nv_data, data->length);
++	if (response_data == NULL)
++		goto complete;
++
++	rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_READ_ITEM, IPC_TYPE_RESP, response_data, response_size);
++	if (rc < 0)
++		goto complete;
++
++	goto complete;
++
++complete:
++	if (response_data != NULL && response_size > 0)
++		free(response_data);
++
++	if (nv_data != NULL)
++		free(nv_data);
++
++	return 0;
++}
++
++int ipc_rfs_nv_write_item(struct ipc_client *client, struct ipc_message *message)
++{
++	struct ipc_rfs_nv_write_item_request_header *header;
++	struct ipc_rfs_nv_write_item_response_data data;
++	struct ipc_rfs_data *ipc_rfs_data;
++	void *nv_data;
++	size_t nv_size;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_nv_write_item_request_header))
++		return -1;
++	header = (struct ipc_rfs_nv_write_item_request_header *) message->data;
++
++	nv_size = ipc_rfs_nv_write_item_size_extract(message->data, message->size);
++	if (nv_size == 0)
++		return 0;
++
++	nv_data = ipc_rfs_nv_write_item_extract(message->data, message->size);
++	if (nv_data == NULL)
++		return 0;
++
++	memset(&data, 0, sizeof(data));
++
++	rc = ipc_nv_data_write(client, nv_data, header->length, header->offset);
++	if (rc < 0) {
++		printf("Writing %d nv_data byte(s) at offset 0x%x failed", header->length, header->offset);
++
++		data.confirm = 0;
++	} else {
++		printf("Wrote %d nv_data byte(s) at offset 0x%x", header->length, header->offset);
++
++		data.confirm = 1;
++		data.offset = header->offset;
++		data.length = header->length;
++	}
++
++	rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_WRITE_ITEM, IPC_TYPE_RESP, (void *) &data, sizeof(data));
++	if (rc < 0)
++		return 0;
++
++	return 0;
++}
++
++int ipc_rfs_read_dir(struct ipc_client *client, struct ipc_message *message)
++{
++	struct ipc_rfs_read_dir_request_header *header;
++	struct ipc_rfs_read_dir_response_header *response_header;
++	struct dirent *dirent;
++	DIR *dirp;
++	void *buffer = NULL;
++	size_t len;
++	int rc;
++
++	if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_read_dir_request_header))
++		return -1;
++
++	header = (struct ipc_rfs_read_dir_request_header *) message->data;
++
++	dirp = (DIR *) header->addr;
++
++	dirent = readdir(dirp);
++	if (dirent == NULL) {
++		len = sizeof(struct ipc_rfs_read_dir_response_header);
++		buffer = alloca(len);
++		if (buffer == NULL)
++			return -1;
++		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
++		response_header->ret = -1;
++		response_header->err = errno;
++	} else {
++		len = sizeof(struct ipc_rfs_read_dir_response_header) + strlen(dirent->d_name);
++		buffer = alloca(len);
++		if (buffer == NULL)
++			return -1;
++		response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
++		response_header->len = strlen(dirent->d_name);
++		strcpy((char *) buffer + sizeof(struct ipc_rfs_read_dir_response_header), dirent->d_name);
++	}
++
++	rc = ipc_client_send(client, message->aseq, IPC_RFS_READ_DIR, IPC_TYPE_RESP, buffer, len);
++
++	return 0;
++}
++
++int mkdir_p(const char *path, size_t len)
++{
++    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
++    char _path[PATH_MAX];
++    char *p;
++
++    errno = 0;
++
++    /* Copy string so its mutable */
++    if (len > sizeof(_path)-1) {
++        errno = ENAMETOOLONG;
++        return -1;
++    }
++    strncpy(_path, path, len);
++
++    /* Iterate the string */
++    for (p = _path + 1; *p; p++) {
++        if (*p == '/') {
++            /* Temporarily truncate */
++            *p = '\0';
++
++            if (mkdir(_path, S_IRWXU) != 0) {
++                if (errno != EEXIST)
++                    return -1;
++            }
++
++            *p = '/';
++        }
++    }
++
++    if (mkdir(_path, S_IRWXU) != 0) {
++        if (errno != EEXIST)
++            return -1;
++    }
++
++    return 0;
++}
++
++int ipc_rfs_make_path(struct ipc_client *client, char *path, char *rel_path, int rel_path_len)
++{
++	int rel_path_pos = 0;
++	char *p;
++	char *efs_root;
++
++	if (rel_path == NULL) {
++		printf("rel_path is null");
++		return -1;
++	}
++
++	efs_root = ipc_client_efs_root(client);
++	if (efs_root == NULL) {
++		printf("Failed to read efs_root");
++		return -1;
++	}
++
++	/* Combine efs_root and rel_path */
++	strcpy(path, efs_root);
++	strncat(path, rel_path, rel_path_len);
++
++	/* See how many subdirectories we start in */
++	p = efs_root;
++	while (strstr(p, "/") != NULL) {
++		p += 1;
++		rel_path_pos--;
++	}
++
++	/* Count number of times we go up a directory */
++	p = path;
++	while (strstr(p, "/../") != NULL) {
++		p += 4;
++		rel_path_pos--;
++	}
++
++	/* Count number of directory separators */
++	p = path;
++	while (strstr(p, "/") != NULL) {
++		p += 1;
++		rel_path_pos++;
++	}
++
++	/* Count number of doubled directory separators */
++	p = path;
++	while (strstr(p, "//") != NULL) {
++		p += 1;
++		rel_path_pos--;
++	}
++
++	/* Make sure we're not trying to go above efs_root */
++	if (rel_path_pos < 0) {
++		printf("WARNING: RIL is trying to access files outside of /efs/, denying access");
++		return -1;
++	}
++
++	printf("Created path %s", path);
++
++	return 0;
++}
++
++int ipc_rfs_generic_io(struct ipc_client *client, struct ipc_message *message)
++{
++	struct ipc_rfs_generic_io_response_header data;
++	struct ipc_rfs_data *ipc_rfs_data;
++	int rc;
++
++	if (message == NULL || message->data == NULL)
++		return -1;
++
++	memset(&data, 0, sizeof(data));
++
++	switch (message->command) {
++		case IPC_RFS_READ_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_read_file_request_header))
++				return -1;
++
++			struct ipc_rfs_read_file_request_header *header =
++					(struct ipc_rfs_read_file_request_header *) message->data;
++			struct ipc_rfs_generic_io_response_header *response;
++
++			/* Special case - we need a bigger buffer */
++			void *buf = alloca(sizeof(struct ipc_rfs_generic_io_response_header) + header->len);
++			if (buf == NULL) {
++				printf("alloca failed");
++				goto error;
++			}
++
++			rc = read(header->fd,
++					(char *) ((char *) buf + sizeof(struct ipc_rfs_generic_io_response_header)),
++					header->len);
++
++			response = buf;
++
++			response->ret = rc;
++
++			if (response->ret == 0)
++				response->err = ENOENT;
++			else if (response->ret < 0)
++				response->err = errno;
++			else
++				response->err = 0;
++
++			rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, response,
++					sizeof(struct ipc_rfs_generic_io_response_header) + response->ret);
++
++			return 0;
++		}
++		case IPC_RFS_WRITE_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_write_file_request_header))
++				return -1;
++
++			struct ipc_rfs_write_file_request_header *header =
++					(struct ipc_rfs_write_file_request_header *) message->data;
++
++			data.ret = write(header->fd,
++					header + sizeof(struct ipc_rfs_write_file_request_header),
++					header->len);
++			break;
++		}
++		case IPC_RFS_LSEEK_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_lseek_file_request_header))
++				return -1;
++
++			struct ipc_rfs_lseek_file_request_header *header =
++					(struct ipc_rfs_lseek_file_request_header *) message->data;
++			data.ret = lseek(header->fd, header->offset, header->whence);
++			break;
++		}
++		case IPC_RFS_CLOSE_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_close_file_request_header))
++				return -1;
++
++			struct ipc_rfs_close_file_request_header *header =
++					(struct ipc_rfs_close_file_request_header *) message->data;
++			data.ret = close(header->fd);
++			break;
++		}
++		case IPC_RFS_RENAME_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_rename_file_request_header))
++				return -1;
++
++			struct ipc_rfs_rename_file_request_header *header1 =
++					(struct ipc_rfs_rename_file_request_header *) message->data;
++			struct ipc_rfs_rename_file_request_header *header2 =
++					(struct ipc_rfs_rename_file_request_header *)
++					((char *) message->data
++					+ sizeof(struct ipc_rfs_rename_file_request_header)
++					+ header1->path_len);
++			char oldpath[PATH_MAX];
++			char newpath[PATH_MAX];;
++
++			rc = ipc_rfs_make_path(client, oldpath,
++					(char *) header1 + sizeof(struct ipc_rfs_rename_file_request_header),
++					header1->path_len);
++
++			if (rc < 0) {
++				printf("ipc_rfs_make_path failed");
++				goto error;
++			}
++
++			rc = ipc_rfs_make_path(client, newpath,
++					(char *) header2 + sizeof(struct ipc_rfs_rename_file_request_header),
++					header2->path_len);
++
++			if (rc < 0) {
++				printf("ipc_rfs_make_path failed");
++				goto error;
++			}
++
++			data.ret = rename(oldpath, newpath);
++			break;
++		}
++		case IPC_RFS_UNLINK_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_unlink_file_request_header))
++				return -1;
++
++			struct ipc_rfs_unlink_file_request_header *header =
++					(struct ipc_rfs_unlink_file_request_header *) message->data;
++			char path[PATH_MAX];
++			rc = ipc_rfs_make_path(client, path,
++					(char *) message->data + sizeof(struct ipc_rfs_unlink_file_request_header),
++					header->path_len);
++			if (rc < 0)
++				goto error;
++			rc = unlink(path);
++			if (rc < 0 && errno == ENOENT)
++				rc = 0;
++			data.ret = rc;
++
++			break;
++		}
++		case IPC_RFS_MAKE_DIR:
++		{
++			if (message->size < sizeof(struct ipc_rfs_make_dir_request_header))
++				return -1;
++
++			struct stat buf;
++			struct ipc_rfs_make_dir_request_header *header =
++					(struct ipc_rfs_make_dir_request_header *) message->data;
++			char path[PATH_MAX];
++			rc = ipc_rfs_make_path(client, path,
++					(char *) message->data + sizeof(struct ipc_rfs_make_dir_request_header),
++					header->path_len);
++			if (rc < 0)
++				goto error;
++			rc = stat(path, &buf);
++			if (rc < 0 && errno == ENOENT)
++				rc = mkdir(path, 0660);
++			data.ret = rc;
++			break;
++		}
++		case IPC_RFS_REMOVE_DIR:
++		{
++			if (message->size < sizeof(struct ipc_rfs_remove_dir_request_header))
++				return -1;
++
++			struct ipc_rfs_remove_dir_request_header *header =
++					(struct ipc_rfs_remove_dir_request_header *) message->data;
++			char path[PATH_MAX];
++			rc = ipc_rfs_make_path(client, path,
++					(char *) message->data + sizeof(struct ipc_rfs_remove_dir_request_header),
++					header->path_len);
++			if (rc < 0)
++				goto error;
++			data.ret = rmdir(path);
++			break;
++		}
++		case IPC_RFS_OPEN_DIR:
++		{
++			if (message->size < sizeof(struct ipc_rfs_open_dir_request_header))
++				return -1;
++
++			DIR *dirp;
++			struct ipc_rfs_open_dir_request_header *header =
++					(struct ipc_rfs_open_dir_request_header *) message->data;
++			char path[PATH_MAX];
++			rc = ipc_rfs_make_path(client, path,
++					(char *) message->data + sizeof(struct ipc_rfs_open_dir_request_header),
++					header->path_len);
++			if (rc < 0)
++				goto error;
++			dirp = opendir(path);
++			if (dirp)
++				data.ret = (int) dirp;
++			else
++				data.ret = -1;
++			break;
++		}
++		case IPC_RFS_CLOSE_DIR:
++		{
++			if (message->size < sizeof(struct ipc_rfs_close_dir_request_header))
++				return -1;
++
++			struct ipc_rfs_close_dir_request_header *header =
++					(struct ipc_rfs_close_dir_request_header *) message->data;
++			data.ret = closedir((DIR *) header->addr);
++			break;
++		}
++		case IPC_RFS_OPEN_FILE:
++		{
++			if (message->size < sizeof(struct ipc_rfs_open_file_request_header))
++				return -1;
++
++			struct ipc_rfs_open_file_request_header *header =
++					(struct ipc_rfs_open_file_request_header *) message->data;
++			char path[PATH_MAX];
++			rc = ipc_rfs_make_path(client, path,
++					(char *) message->data + sizeof(struct ipc_rfs_open_file_request_header),
++					header->path_len);
++			if (rc < 0)
++				goto error;
++			if (header->flags & O_CREAT) {
++				printf("Recursively creating directory and files");
++
++				char *index = strrchr(path, '/');
++				if (index != NULL)
++					mkdir_p(path, index - path);
++			}
++			data.ret = open(path, header->flags | O_DSYNC, 0644);
++			break;
++		}
++		default:
++		{
++			printf("Unknown generic IO command %d", message->command);
++			goto error;
++		}
++	}
++
++	if (data.ret < 0)
++		data.err = errno;
++
++	rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, &data,
++			sizeof(struct ipc_rfs_generic_io_response_header));
++
++	return 0;
++
++error:
++	data.ret = -1;
++	data.err = EPERM;
++
++	rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, &data,
++			sizeof(struct ipc_rfs_generic_io_response_header));
++
++	return 0;
++}
++
++int ipc_rfs_file_info(struct ipc_client *client, struct ipc_message *message)
++{
++	struct ipc_rfs_data *ipc_rfs_data;
++	struct ipc_rfs_file_info_response_data data;
++	struct stat buf;
++	struct tm result;
++	char path[PATH_MAX];
++	int rc;
++
++	if (message == NULL || message->data == NULL)
++		return -1;
++
++	memset(&data, 0, sizeof(data));
++
++	if (message->command == IPC_RFS_GET_FILE_INFO) {
++		if (message->size < sizeof(struct ipc_rfs_get_file_info_request_header))
++			return -1;
++
++		struct ipc_rfs_get_file_info_request_header *header =
++				(struct ipc_rfs_get_file_info_request_header *) message->data;
++
++		rc = ipc_rfs_make_path(client, path,
++				(char*) message->data + sizeof(struct ipc_rfs_get_file_info_request_header),
++				header->path_len);
++		if (rc < 0) {
++			data.ret = -1;
++			data.err = EPERM;
++			goto out;
++		}
++
++		rc = stat(path, &buf);
++	} else if (message->command == IPC_RFS_GET_HANDLE_INFO) {
++		if (message->size < sizeof(struct ipc_rfs_get_handle_info_request_header))
++			return -1;
++
++		struct ipc_rfs_get_handle_info_request_header *header =
++				(struct ipc_rfs_get_handle_info_request_header *) message->data;
++
++		rc = fstat(header->fd, &buf);
++	} else {
++		printf("Unknown command %d for %s", message->command, __func__);
++		return -1;
++	}
++
++	if (rc < 0) {
++		data.ret = rc;
++		data.err = errno;
++	} else {
++		if (S_ISDIR(buf.st_mode)) {
++			data.type = IPC_RFS_TYPE_DIRECTORY;
++		} else if (S_ISREG(buf.st_mode)) {
++			data.type = IPC_RFS_TYPE_FILE;
++		} else {
++			printf("Unknown file type, setting to 0");
++			data.type = IPC_RFS_TYPE_UNKNOWN;
++		}
++		data.size = buf.st_size;
++
++		// Store creation times
++		localtime_r((time_t *) &buf.st_ctime, &result);
++		data.c_year = (unsigned char) (result.tm_year  - 100);
++		data.c_month = (unsigned char) (result.tm_mon + 1);
++		data.c_day = (unsigned char) result.tm_mday;
++		data.c_hour = (unsigned char) result.tm_hour;
++		data.c_min = (unsigned char) result.tm_min;
++		data.c_sec = (unsigned char) result.tm_sec;
++
++		// Store modification times
++		localtime_r((time_t *) &buf.st_mtime, &result);
++		data.m_year = (unsigned char) (result.tm_year  - 100);
++		data.m_month = (unsigned char) (result.tm_mon + 1);
++		data.m_day = (unsigned char) result.tm_mday;
++		data.m_hour = (unsigned char) result.tm_hour;
++		data.m_min = (unsigned char) result.tm_min;
++		data.m_sec = (unsigned char) result.tm_sec;
++	}
++
++out:
++	rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, (void *) &data, sizeof(data));
++
++	return 0;
++}
+diff --git a/tools/rfs.h b/tools/rfs.h
+new file mode 100644
+index 0000000..6957ffa
+--- /dev/null
++++ b/tools/rfs.h
+@@ -0,0 +1,7 @@
++#include <samsung-ipc.h>
++
++int ipc_rfs_nv_read_item(struct ipc_client *client, struct ipc_message *message);
++int ipc_rfs_nv_write_item(struct ipc_client *client, struct ipc_message *message);
++int ipc_rfs_file_info(struct ipc_client *client, struct ipc_message *message);
++int ipc_rfs_generic_io(struct ipc_client *client, struct ipc_message *message);
++int ipc_rfs_read_dir(struct ipc_client *client, struct ipc_message *message);
+-- 
+2.11.0
+
+
+From 195a471be277401d94339885ed5bb7e51e232b71 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Thu, 3 Jan 2019 18:04:28 -0800
+Subject: [PATCH 3/3] Make /proc/cpuinfo matching actually work
+
+strncmp returns 0 for a match, plus we shouldn't be trying to compare
+the null characters at the end of the string.  Also, don't bother
+converting to lower case; there's no point
+---
+ samsung-ipc/ipc.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/samsung-ipc/ipc.c b/samsung-ipc/ipc.c
+index fcfd19c..d4daa38 100644
+--- a/samsung-ipc/ipc.c
++++ b/samsung-ipc/ipc.c
+@@ -75,14 +75,12 @@ int ipc_device_detect(void)
  
- #include "devices/crespo/crespo.h"
- #include "devices/aries/aries.h"
-+#include "devices/galaxys4g/galaxys4g.h"
- #include "devices/galaxys2/galaxys2.h"
- #include "devices/maguro/maguro.h"
- #include "devices/piranha/piranha.h"
+     line = strtok(buffer, "\n");
+     while (line != NULL) {
+-        if (strncmp(line, "Hardware", 9) == 9) {
++        if (strncmp(line, "Hardware", 8) == 0) {
+             p = line + 11;
+             c = p;
+ 
+-            while (*c != '\n' && *c != '\0') {
+-                *c = tolower(*c);
++            while (*c != '\n' && *c != '\0')
+                 c++;
+-            }
+ 
+             *c = '\0';
+ 
 -- 
 2.11.0
 

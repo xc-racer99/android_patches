@@ -1,7 +1,694 @@
+From 2af14f9f70d5787afde143b1482c1ea0fbba9687 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Fri, 24 Aug 2018 17:16:02 -0700
+Subject: [PATCH 1/9] Fix includes for 4.4
+
+I'm using the 6.0 branch as it has some fixes the 4.4 branch doesn't have
+---
+ Android.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.mk b/Android.mk
+index 8944046..f1445fe 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -80,6 +80,7 @@ LOCAL_SRC_FILES := \
+ 	samsung-ipc/gen.c
+ 
+ LOCAL_C_INCLUDES := \
++	external/openssl/include \
+ 	$(LOCAL_PATH)/include \
+ 	$(LOCAL_PATH)/samsung-ipc \
+ 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
+-- 
+2.11.0
+
+
+From c0fbf987452804109de370fe3b19e15e77b38392 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sat, 21 Apr 2018 15:55:20 -0700
+Subject: [PATCH 2/9] Add headers and defines for more RFS commands
+
+Used in the Galaxy S 4G (SGH-T959P/SGH-T959V/SGH-T959W) series for copying files from EFS to the modem device
+---
+ include/rfs.h           | 113 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/samsung-ipc.h   |   1 +
+ samsung-ipc/ipc.c       |   8 ++++
+ samsung-ipc/ipc.h       |   1 +
+ samsung-ipc/ipc_utils.c |  38 ++++++++++++++++
+ 5 files changed, 161 insertions(+)
+
+diff --git a/include/rfs.h b/include/rfs.h
+index 7950f16..2f346ce 100644
+--- a/include/rfs.h
++++ b/include/rfs.h
+@@ -28,6 +28,25 @@
+ 
+ #define IPC_RFS_NV_READ_ITEM                                    0x4201
+ #define IPC_RFS_NV_WRITE_ITEM                                   0x4202
++#define IPC_RFS_READ_FILE                                       0x4203
++#define IPC_RFS_WRITE_FILE                                      0x4204
++#define IPC_RFS_LSEEK_FILE                                      0x4205
++#define IPC_RFS_CLOSE_FILE                                      0x4206
++#define IPC_RFS_PUT_FILE                                        0x4207
++#define IPC_RFS_GET_FILE                                        0x4208
++#define IPC_RFS_RENAME_FILE                                     0x4209
++#define IPC_RFS_GET_FILE_INFO                                   0x420a
++#define IPC_RFS_UNLINK_FILE                                     0x420b
++#define IPC_RFS_MAKE_DIR                                        0x420c
++#define IPC_RFS_REMOVE_DIR                                      0x420d
++#define IPC_RFS_OPEN_DIR                                        0x420e
++#define IPC_RFS_READ_DIR                                        0x420f
++#define IPC_RFS_CLOSE_DIR                                       0x4210
++#define IPC_RFS_OPEN_FILE                                       0x4211
++#define IPC_RFS_FTRUNCATE_FILE                                  0x4212
++#define IPC_RFS_GET_HANDLE_INFO                                 0x4213
++#define IPC_RFS_CREATE_FILE                                     0x4214
++#define IPC_RFS_NV_WRITE_ALL_ITEM                               0x4215
+ 
+ /*
+  * Values
+@@ -36,6 +55,9 @@
+ #define NV_DATA_SECRET                          "Samsung_Android_RIL"
+ #define NV_DATA_SIZE                                            0x200000
+ #define NV_DATA_CHUNK_SIZE                                      0x1000
++#define IPC_RFS_TYPE_UNKNOWN                                    0x0
++#define IPC_RFS_TYPE_DIRECTORY                                  0x1
++#define IPC_RFS_TYPE_FILE                                       0x2
+ 
+ /*
+  * Structures
+@@ -63,6 +85,97 @@ struct ipc_rfs_nv_write_item_response_data {
+     unsigned int length;
+ } __attribute__((__packed__));
+ 
++struct ipc_rfs_generic_io_response_header {
++    int ret;
++    int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_dir_response_header {
++    int ret;
++    int len;
++    int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_file_info_response_data {
++    unsigned int ret;
++    unsigned short type;
++    unsigned int size;
++    unsigned char c_year;
++    unsigned char c_month;
++    unsigned char c_day;
++    unsigned char c_hour;
++    unsigned char c_min;
++    unsigned char c_sec;
++    unsigned char m_year;
++    unsigned char m_month;
++    unsigned char m_day;
++    unsigned char m_hour;
++    unsigned char m_min;
++    unsigned char m_sec;
++    unsigned int err;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_write_file_request_header {
++    int fd;
++    int len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_lseek_file_request_header {
++    int fd;
++    int offset;
++    int whence;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_file_request_header {
++    int fd;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_file_info_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_rename_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_unlink_file_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_make_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_remove_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_dir_request_header {
++    int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_read_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_close_dir_request_header {
++    unsigned int addr;
++} __attribute__((__packed__));
++
++struct ipc_rfs_open_file_request_header {
++    unsigned int flags; // | O_DSYNC
++    unsigned int path_len;
++} __attribute__((__packed__));
++
++struct ipc_rfs_get_handle_info_request_header {
++    int fd;
++} __attribute__((__packed__));
++
+ /*
+  * Helpers
+  */
+diff --git a/include/samsung-ipc.h b/include/samsung-ipc.h
+index 9d638ec..3bde3c0 100644
+--- a/include/samsung-ipc.h
++++ b/include/samsung-ipc.h
+@@ -105,6 +105,7 @@ char *ipc_client_gprs_get_iface(struct ipc_client *client, unsigned int cid);
+ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
+     struct ipc_client_gprs_capabilities *capabilities);
+ 
++char *ipc_client_efs_root(struct ipc_client *client);
+ char *ipc_client_nv_data_path(struct ipc_client *client);
+ char *ipc_client_nv_data_md5_path(struct ipc_client *client);
+ char *ipc_client_nv_data_backup_path(struct ipc_client *client);
+diff --git a/samsung-ipc/ipc.c b/samsung-ipc/ipc.c
+index b3ee679..fcfd19c 100644
+--- a/samsung-ipc/ipc.c
++++ b/samsung-ipc/ipc.c
+@@ -431,6 +431,14 @@ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
+     return client->gprs_specs->gprs_get_capabilities(capabilities);
+ }
+ 
++char *ipc_client_efs_root(struct ipc_client *client)
++{
++    if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->efs_root == NULL)
++        return NULL;
++
++    return client->nv_data_specs->efs_root;
++}
++
+ char *ipc_client_nv_data_path(struct ipc_client *client)
+ {
+     if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->nv_data_path == NULL)
+diff --git a/samsung-ipc/ipc.h b/samsung-ipc/ipc.h
+index 60fca12..ed483f2 100644
+--- a/samsung-ipc/ipc.h
++++ b/samsung-ipc/ipc.h
+@@ -70,6 +70,7 @@ struct ipc_client_gprs_specs {
+ };
+ 
+ struct ipc_client_nv_data_specs {
++    char *efs_root;
+     char *nv_data_path;
+     char *nv_data_md5_path;
+     char *nv_data_backup_path;
+diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
+index 33860ce..4e145e9 100644
+--- a/samsung-ipc/ipc_utils.c
++++ b/samsung-ipc/ipc_utils.c
+@@ -345,6 +345,44 @@ const char *ipc_command_string(unsigned short command)
+             return "IPC_RFS_NV_READ_ITEM";
+         case IPC_RFS_NV_WRITE_ITEM:
+             return "IPC_RFS_NV_WRITE_ITEM";
++        case IPC_RFS_READ_FILE:
++            return "IPC_RFS_READ_FILE";
++        case IPC_RFS_WRITE_FILE:
++            return "IPC_RFS_WRITE_FILE";
++        case IPC_RFS_LSEEK_FILE:
++            return "IPC_RFS_LSEEK_FILE";
++        case IPC_RFS_CLOSE_FILE:
++            return "IPC_RFS_CLOSE_FILE";
++        case IPC_RFS_PUT_FILE:
++            return "IPC_RFS_PUT_FILE";
++        case IPC_RFS_GET_FILE:
++            return "IPC_RFS_GET_FILE";
++        case IPC_RFS_RENAME_FILE:
++            return "IPC_RFS_RENAME_FILE";
++        case IPC_RFS_GET_FILE_INFO:
++            return "IPC_RFS_GET_FILE_INFO";
++        case IPC_RFS_UNLINK_FILE:
++            return "IPC_RFS_UNLINK_FILE";
++        case IPC_RFS_MAKE_DIR:
++            return "IPC_RFS_MAKE_DIR";
++        case IPC_RFS_REMOVE_DIR:
++            return "IPC_RFS_REMOVE_DIR";
++        case IPC_RFS_OPEN_DIR:
++            return "IPC_RFS_OPEN_DIR";
++        case IPC_RFS_READ_DIR:
++            return "IPC_RFS_READ_DIR";
++        case IPC_RFS_CLOSE_DIR:
++            return "IPC_RFS_CLOSE_DIR";
++        case IPC_RFS_OPEN_FILE:
++            return "IPC_RFS_OPEN_FILE";
++        case IPC_RFS_FTRUNCATE_FILE:
++            return "IPC_RFS_FTRUNCATE_FILE";
++        case IPC_RFS_GET_HANDLE_INFO:
++            return "IPC_RFS_GET_HANDLE_INFO";
++        case IPC_RFS_CREATE_FILE:
++            return "IPC_RFS_CREATE_FILE";
++        case IPC_RFS_NV_WRITE_ALL_ITEM:
++            return "IPC_RFS_NV_WRITE_ALL_ITEM";
+         case IPC_GEN_PHONE_RES:
+             return "IPC_GEN_PHONE_RES";
+         default:
+-- 
+2.11.0
+
+
+From cf894c5c30f403c85a990b0e80ce59fbd9def4e3 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Mon, 23 Apr 2018 17:07:03 -0700
+Subject: [PATCH 3/9] Fix struct ipc_net_serving_network_data definition
+
+On some devices, the last entry is a char, not a short (and perhaps not lac?)  Regardless, it is never used except for verification of minimum size of message
+---
+ include/net.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/net.h b/include/net.h
+index 390541e..6d67e38 100644
+--- a/include/net.h
++++ b/include/net.h
+@@ -94,7 +94,7 @@ struct ipc_net_plmn_sel_request_data {
+ struct ipc_net_serving_network_data {
+     unsigned char unknown[3];
+     char plmn[6];
+-    unsigned short lac;
++    unsigned char lac; // This can be either a short or a char
+ } __attribute__((__packed__));
+ 
+ struct ipc_net_plmn_list_header {
+-- 
+2.11.0
+
+
+From 4db4786b4ab6fcab41b3459b5a67f5a132ad744e Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Tue, 24 Apr 2018 14:19:30 -0700
+Subject: [PATCH 4/9] Add more call type defines
+
+We don't need to handle them for basic calling support, but they should defined in case they ever do appear in the wild
+---
+ include/call.h          | 3 +++
+ samsung-ipc/ipc_utils.c | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/include/call.h b/include/call.h
+index 4f5d152..cc0988a 100644
+--- a/include/call.h
++++ b/include/call.h
+@@ -37,6 +37,9 @@
+ #define IPC_CALL_CONT_DTMF                                      0x0208
+ #define IPC_CALL_WAITING                                        0x0209
+ #define IPC_CALL_LINE_ID                                        0x020A
++#define IPC_CALL_SIGNAL                                         0x020B
++#define IPC_CALL_VOICE_PRIVACY                                  0x020C
++#define IPC_CALL_CALL_TIME_COUNT                                0x020D
+ 
+ /*
+  * Values
+diff --git a/samsung-ipc/ipc_utils.c b/samsung-ipc/ipc_utils.c
+index 4e145e9..8c33e2e 100644
+--- a/samsung-ipc/ipc_utils.c
++++ b/samsung-ipc/ipc_utils.c
+@@ -117,6 +117,12 @@ const char *ipc_command_string(unsigned short command)
+             return "IPC_CALL_WAITING";
+         case IPC_CALL_LINE_ID:
+             return "IPC_CALL_LINE_ID";
++        case IPC_CALL_SIGNAL:
++            return "IPC_CALL_SIGNAL";
++        case IPC_CALL_VOICE_PRIVACY:
++            return "IPC_CALL_VOICE_PRIVACY";
++        case IPC_CALL_CALL_TIME_COUNT:
++            return "IPC_CALL_CALL_TIME_COUNT";
+         case IPC_SMS_SEND_MSG:
+             return "IPC_SMS_SEND_MSG";
+         case IPC_SMS_INCOMING_MSG:
+-- 
+2.11.0
+
+
+From c14e65fba620130534cfaec3dbdd315336883843 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Thu, 26 Apr 2018 11:42:20 -0700
+Subject: [PATCH 5/9] Add a default call type
+
+Used instead of voice with some devices
+---
+ include/call.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/call.h b/include/call.h
+index cc0988a..4c811c5 100644
+--- a/include/call.h
++++ b/include/call.h
+@@ -45,6 +45,7 @@
+  * Values
+  */
+ 
++#define IPC_CALL_TYPE_DEFAULT                                   0x00
+ #define IPC_CALL_TYPE_VOICE                                     0x01
+ #define IPC_CALL_TYPE_DATA                                      0x03
+ 
+-- 
+2.11.0
+
+
+From 42aaa1a0dfe7b8900ad5a3bdadcc9c526f4fad88 Mon Sep 17 00:00:00 2001
+From: xc-racer99 <xc-racer2@live.ca>
+Date: Sun, 15 Apr 2018 12:58:49 -0700
+Subject: [PATCH 6/9] Add CRC CCITT calculation library
+
+The XMODEM version is used by Galaxy S 4G devices in the serial communication with its STE M5730 modem
+
+From https://github.com/lammertb/libcrc/tree/v2.0
+---
+ Android.mk              |   1 +
+ samsung-ipc/Makefile.am |   1 +
+ samsung-ipc/checksum.h  |  81 ++++++++++++++++++++++
+ samsung-ipc/crc_ccitt.c | 176 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 259 insertions(+)
+ create mode 100644 samsung-ipc/checksum.h
+ create mode 100644 samsung-ipc/crc_ccitt.c
+
+diff --git a/Android.mk b/Android.mk
+index f1445fe..3aa9dd0 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -68,6 +68,7 @@ LOCAL_SRC_FILES := \
+ 	samsung-ipc/devices/i9300/i9300.c \
+ 	samsung-ipc/devices/n7100/n7100.c \
+ 	samsung-ipc/devices/n5100/n5100.c \
++	samsung-ipc/crc_ccitt.c \
+ 	samsung-ipc/utils.c \
+ 	samsung-ipc/call.c \
+ 	samsung-ipc/sms.c \
+diff --git a/samsung-ipc/Makefile.am b/samsung-ipc/Makefile.am
+index ed65c29..1dda9c2 100644
+--- a/samsung-ipc/Makefile.am
++++ b/samsung-ipc/Makefile.am
+@@ -55,6 +55,7 @@ libsamsung_ipc_la_SOURCES = \
+ 	devices/n5100/n5100.c \
+ 	devices/n5100/n5100.h \
+ 	utils.c \
++	crc_ccitt.c \
+ 	call.c \
+ 	sms.c \
+ 	sec.c \
+diff --git a/samsung-ipc/checksum.h b/samsung-ipc/checksum.h
+new file mode 100644
+index 0000000..0a3dee7
+--- /dev/null
++++ b/samsung-ipc/checksum.h
+@@ -0,0 +1,81 @@
++/*
++ * Library: libcrc
++ * File:    include/checksum.h
++ * Author:  Lammert Bies
++ *
++ * This file is licensed under the MIT License as stated below
++ *
++ * Copyright (c) 1999-2016 Lammert Bies
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to deal
++ * in the Software without restriction, including without limitation the rights
++ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++ * copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in all
++ * copies or substantial portions of the Software.
++ * 
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ *
++ * Description
++ * -----------
++ * The headerfile include/checksum.h contains the definitions and prototypes
++ * for routines that can be used to calculate several kinds of checksums.
++ */
++
++#ifndef DEF_LIBCRC_CHECKSUM_H
++#define DEF_LIBCRC_CHECKSUM_H
++
++#include <stdint.h>
++
++/*
++ * #define CRC_POLY_xxxx
++ *
++ * The constants of the form CRC_POLY_xxxx define the polynomials for some well
++ * known CRC calculations.
++ */
++
++#define		CRC_POLY_16		0xA001
++#define		CRC_POLY_32		0xEDB88320L
++#define		CRC_POLY_CCITT		0x1021
++#define		CRC_POLY_DNP		0xA6BC
++#define		CRC_POLY_KERMIT		0x8408
++#define		CRC_POLY_SICK		0x8005
++
++/*
++ * #define CRC_START_xxxx
++ *
++ * The constants of the form CRC_START_xxxx define the values that are used for
++ * initialization of a CRC value for common used calculation methods.
++ */
++
++#define		CRC_START_8		0x00
++#define		CRC_START_16		0x0000
++#define		CRC_START_MODBUS	0xFFFF
++#define		CRC_START_XMODEM	0x0000
++#define		CRC_START_CCITT_1D0F	0x1D0F
++#define		CRC_START_CCITT_FFFF	0xFFFF
++#define		CRC_START_KERMIT	0x0000
++#define		CRC_START_SICK		0x0000
++#define		CRC_START_DNP		0x0000
++#define		CRC_START_32		0xFFFFFFFFL
++
++/*
++ * Prototype list of global functions
++ */
++
++uint16_t		crc_ccitt_1d0f(    const unsigned char *input_str, size_t num_bytes       );
++uint16_t		crc_ccitt_ffff(    const unsigned char *input_str, size_t num_bytes       );
++uint16_t		crc_xmodem(        const unsigned char *input_str, size_t num_bytes       );
++uint16_t		update_crc_ccitt(  uint16_t crc, unsigned char c                          );
++
++#endif  // DEF_LIBCRC_CHECKSUM_H
++
+diff --git a/samsung-ipc/crc_ccitt.c b/samsung-ipc/crc_ccitt.c
+new file mode 100644
+index 0000000..7b3ddad
+--- /dev/null
++++ b/samsung-ipc/crc_ccitt.c
+@@ -0,0 +1,176 @@
++/*
++ * Library: libcrc
++ * File:    src/crcccitt.c
++ * Author:  Lammert Bies
++ *
++ * This file is licensed under the MIT License as stated below
++ *
++ * Copyright (c) 1999-2016 Lammert Bies
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to deal
++ * in the Software without restriction, including without limitation the rights
++ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++ * copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in all
++ * copies or substantial portions of the Software.
++ * 
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ *
++ * Description
++ * -----------
++ * The module src/crcccitt.c contains routines which are used to calculate the
++ * CCITT CRC values of a string of bytes.
++ */
++
++#include <stdbool.h>
++#include <stdlib.h>
++#include "checksum.h"
++
++static uint16_t		crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value );
++static void             init_crcccitt_tab( void );
++
++static bool             crc_tabccitt_init       = false;
++static uint16_t         crc_tabccitt[256];
++
++/*
++ * uint16_t crc_xmodem( const unsigned char *input_str, size_t num_bytes );
++ *
++ * The function crc_xmodem() performs a one-pass calculation of an X-Modem CRC
++ * for a byte string that has been passed as a parameter.
++ */
++
++uint16_t crc_xmodem( const unsigned char *input_str, size_t num_bytes ) {
++
++	return crc_ccitt_generic( input_str, num_bytes, CRC_START_XMODEM );
++
++}  /* crc_xmodem */
++
++/*
++ * uint16_t crc_ccitt_1d0f( const unsigned char *input_str, size_t num_bytes );
++ *
++ * The function crc_ccitt_1d0f() performs a one-pass calculation of the CCITT
++ * CRC for a byte string that has been passed as a parameter. The initial value
++ * 0x1d0f is used for the CRC.
++ */
++
++uint16_t crc_ccitt_1d0f( const unsigned char *input_str, size_t num_bytes ) {
++
++	return crc_ccitt_generic( input_str, num_bytes, CRC_START_CCITT_1D0F );
++
++}  /* crc_ccitt_1d0f */
++
++/*
++ * uint16_t crc_ccitt_ffff( const unsigned char *input_str, size_t num_bytes );
++ *
++ * The function crc_ccitt_ffff() performs a one-pass calculation of the CCITT
++ * CRC for a byte string that has been passed as a parameter. The initial value
++ * 0xffff is used for the CRC.
++ */
++
++uint16_t crc_ccitt_ffff( const unsigned char *input_str, size_t num_bytes ) {
++
++	return crc_ccitt_generic( input_str, num_bytes, CRC_START_CCITT_FFFF );
++
++}  /* crc_ccitt_ffff */
++
++/*
++ * static uint16_t crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value );
++ *
++ * The function crc_ccitt_generic() is a generic implementation of the CCITT
++ * algorithm for a one-pass calculation of the CRC for a byte string. The
++ * function accepts an initial start value for the crc.
++ */
++
++static uint16_t crc_ccitt_generic( const unsigned char *input_str, size_t num_bytes, uint16_t start_value ) {
++
++	uint16_t crc;
++	uint16_t tmp;
++	uint16_t short_c;
++	const unsigned char *ptr;
++	size_t a;
++
++	if ( ! crc_tabccitt_init ) init_crcccitt_tab();
++
++	crc = start_value;
++	ptr = input_str;
++
++	if ( ptr != NULL ) for (a=0; a<num_bytes; a++) {
++
++		short_c = 0x00ff & (unsigned short) *ptr;
++		tmp     = (crc >> 8) ^ short_c;
++		crc     = (crc << 8) ^ crc_tabccitt[tmp];
++
++		ptr++;
++	}
++
++	return crc;
++
++}  /* crc_ccitt_generic */
++
++/*
++ * uint16_t update_crc_ccitt( uint16_t crc, unsigned char c );
++ *
++ * The function update_crc_ccitt() calculates a new CRC-CCITT value based on
++ * the previous value of the CRC and the next byte of the data to be checked.
++ */
++
++uint16_t update_crc_ccitt( uint16_t crc, unsigned char c ) {
++
++	int16_t tmp;
++	int16_t short_c;
++
++	short_c  = 0x00ff & (uint16_t) c;
++
++	if ( ! crc_tabccitt_init ) init_crcccitt_tab();
++
++	tmp = (crc >> 8) ^ short_c;
++	crc = (crc << 8) ^ crc_tabccitt[tmp];
++
++	return crc;
++
++}  /* update_crc_ccitt */
++
++/*
++ * static void init_crcccitt_tab( void );
++ *
++ * For optimal performance, the routine to calculate the CRC-CCITT uses a
++ * lookup table with pre-compiled values that can be directly applied in the
++ * XOR action. This table is created at the first call of the function by the
++ * init_crcccitt_tab() routine.
++ */
++
++static void init_crcccitt_tab( void ) {
++
++	uint16_t i;
++	uint16_t j;
++	uint16_t crc;
++	uint16_t c;
++
++	for (i=0; i<256; i++) {
++
++		crc = 0;
++		c   = i << 8;
++
++		for (j=0; j<8; j++) {
++
++			if ( (crc ^ c) & 0x8000 ) crc = ( crc << 1 ) ^ CRC_POLY_CCITT;
++			else                      crc =   crc << 1;
++
++			c = c << 1;
++		}
++
++		crc_tabccitt[i] = crc;
++	}
++
++	crc_tabccitt_init = true;
++
++}  /* init_crcccitt_tab */
+-- 
+2.11.0
+
+
 From 8d2a27bb01118517589ebf1e823160a0c803660c Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Thu, 3 Jan 2019 12:18:24 -0800
-Subject: [PATCH 1/3] Add support for mainline  kernel and STE M5730 modems to
+Subject: [PATCH 7/9] Add support for mainline  kernel and STE M5730 modems to
  Crespo driver
 
 Some Galaxy S variants use an STE modem which has a different startup
@@ -835,7 +1522,7 @@ index ad7d23c..f0d4461 100644
 From f0283623b695a9d7febd5205b10729b4bf6e1f54 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 31 Dec 2018 12:36:17 -0800
-Subject: [PATCH 2/3] ipc-modem: Add support for RFS commands
+Subject: [PATCH 8/9] ipc-modem: Add support for RFS commands
 
 Some devices may need access to RFS commands before they connect
 ---
@@ -1691,7 +2378,7 @@ index 0000000..6957ffa
 From 195a471be277401d94339885ed5bb7e51e232b71 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Thu, 3 Jan 2019 18:04:28 -0800
-Subject: [PATCH 3/3] Make /proc/cpuinfo matching actually work
+Subject: [PATCH 9/9] Make /proc/cpuinfo matching actually work
 
 strncmp returns 0 for a match, plus we shouldn't be trying to compare
 the null characters at the end of the string.  Also, don't bother

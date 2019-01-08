@@ -1,7 +1,7 @@
-From bddb496cb70b1a628ec773687f467070797300e9 Mon Sep 17 00:00:00 2001
+From bcf715c27419b7500dc658be2c48a0bef9bc61ce Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 6 Aug 2018 13:10:47 -0700
-Subject: [PATCH] unlegacy: Add ua_telusgalaxys4gmtd
+Subject: [PATCH 1/2] unlegacy: Add ua_telusgalaxys4gmtd
 
 SGH-T959P - first gen Galaxy S device
 
@@ -62,15 +62,102 @@ index 0000000..320e049
 +    BUILD_FINGERPRINT="samsung/SGH-T959P/SGH-T959P:2.3.4/GINGERBREAD/PTLKH2:user/release-keys" \
 +    PRIVATE_BUILD_DESC="SGH-T959P-user 2.3.4 GINGERBREAD PTLKH2 release-keys"
 diff --git a/vendorsetup.sh b/vendorsetup.sh
-index 8d81f3b..e78e835 100644
+index 1b18c01..abf5dcb 100644
 --- a/vendorsetup.sh
 +++ b/vendorsetup.sh
-@@ -7,4 +7,5 @@
+@@ -7,6 +7,7 @@
  add_lunch_combo ua_espresso-userdebug
  add_lunch_combo ua_espresso3g-userdebug
  add_lunch_combo ua_picasso2-userdebug
 +add_lunch_combo ua_telusgalaxys4gmtd-userdebug
  add_lunch_combo ua_tuna-userdebug
+ 
+ while read -r file; do
+-- 
+2.11.0
+
+
+From 537b3870e0089a6d56751dc2c43b4c28f0855713 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Tue, 8 Jan 2019 13:22:35 -0800
+Subject: [PATCH 2/2] Add galaxysmtd
+
+Change-Id: I4d9a634b7dc2d866fadd0b92fc17f6174697a745
+---
+ AndroidProducts.mk        |  1 +
+ products/ua_galaxysmtd.mk | 32 ++++++++++++++++++++++++++++++++
+ vendorsetup.sh            |  3 +++
+ 3 files changed, 36 insertions(+)
+ create mode 100644 products/ua_galaxysmtd.mk
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index b15a7f0..b3bb6af 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -15,6 +15,7 @@
+ PRODUCT_MAKEFILES := \
+     $(LOCAL_DIR)/products/ua_espresso.mk \
+     $(LOCAL_DIR)/products/ua_espresso3g.mk \
++    $(LOCAL_DIR)/products/ua_galaxysmtd.mk \
+     $(LOCAL_DIR)/products/ua_picasso2.mk \
+     $(LOCAL_DIR)/products/ua_telusgalaxys4gmtd.mk \
+     $(LOCAL_DIR)/products/ua_tuna.mk
+diff --git a/products/ua_galaxysmtd.mk b/products/ua_galaxysmtd.mk
+new file mode 100644
+index 0000000..81fdadb
+--- /dev/null
++++ b/products/ua_galaxysmtd.mk
+@@ -0,0 +1,32 @@
++# Copyright (C) 2016 Unlegacy Android
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++# Inherit Unlegacy Android common configuration
++$(call inherit-product, vendor/unlegacy/configs/common.mk)
++
++# Inherit AOSP device configuration
++$(call inherit-product, device/samsung/telusgalaxys4gmtd/full_telusgalaxys4gmtd.mk)
++
++PRODUCT_DEVICE := galaxysmtd
++PRODUCT_NAME := ua_galaxysmtd
++PRODUCT_BRAND := samsung
++PRODUCT_MANUFACTURER := samsung
++PRODUCT_MODEL := GT-I9000
++
++#Set build fingerprint / ID / Prduct Name ect.
++PRODUCT_BUILD_PROP_OVERRIDES += \
++    PRODUCT_NAME=GT-I9000 \
++    TARGET_DEVICE=GT-I9000 \
++    BUILD_FINGERPRINT=samsung/GT-I9000/GT-I9000:2.3.5/GINGERBREAD/XXJVT:user/release-keys \
++    PRIVATE_BUILD_DESC="GT-I9000-user 2.3.5 GINGERBREAD XXJVT release-keys"
+diff --git a/vendorsetup.sh b/vendorsetup.sh
+index abf5dcb..c5b9674 100644
+--- a/vendorsetup.sh
++++ b/vendorsetup.sh
+@@ -6,10 +6,13 @@
+ # Unlegacy Android devices combos
+ add_lunch_combo ua_espresso-userdebug
+ add_lunch_combo ua_espresso3g-userdebug
++add_lunch_combo ua_galaxysmtd-userdebug
+ add_lunch_combo ua_picasso2-userdebug
+ add_lunch_combo ua_telusgalaxys4gmtd-userdebug
+ add_lunch_combo ua_tuna-userdebug
+ 
++export PATH=/home/jon/bin/java-se-7u75-ri/bin:$PATH
++
+ while read -r file; do
+     project="$(dirname ${file} | sed 's|vendor/unlegacy/patch/||g')"
+     bugid="$(grep '^Bug: ' ${file} | sed -E 's|^\s*Bug: ([0-9]+).*$|\1|g')"
 -- 
 2.11.0
 

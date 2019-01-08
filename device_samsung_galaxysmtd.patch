@@ -1,0 +1,910 @@
+From eb265c00614d7c26f9c38e88be7c489a1ec55f98 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Tue, 8 Jan 2019 13:20:59 -0800
+Subject: [PATCH 1/2] Remove asound.conf and non-AOSP overlays
+
+---
+ asound.conf                                        | 775 ---------------------
+ device.mk                                          |   7 -
+ .../frameworks/base/core/res/res/values/config.xml |  34 -
+ .../packages/apps/Settings/res/values/config.xml   |  20 -
+ 4 files changed, 836 deletions(-)
+ delete mode 100644 asound.conf
+ delete mode 100644 overlay/frameworks/base/core/res/res/values/config.xml
+ delete mode 100644 overlay/packages/apps/Settings/res/values/config.xml
+
+diff --git a/asound.conf b/asound.conf
+deleted file mode 100644
+index a279e39..0000000
+--- a/asound.conf
++++ /dev/null
+@@ -1,775 +0,0 @@
+-# Android ALSA configuration file for the WM8994 audio.
+-
+-
+-##################################################################################################################
+-#
+-#	{name "Playback Path"		value 2}		# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-#								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 9:R_SPK_HP
+-#	{name "FM Radio Path"		value 6}		# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-#								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 9:R_SPK_HP
+-#	{name "Capture MIC Path"	value 1} 		# 0:Main Mic 1:Ear MIC 2:BT MIC
+-#	{name "Voice Call Path"		value 1}		# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-#
+-##################################################################################################################
+-
+-
+-##
+-## Mixer Devices
+-##
+-
+-ctl.AndroidPlayback {
+-	type hw
+-	card 0
+-}
+-
+-ctl.AndroidRecord {
+-	type hw
+-	card 0
+-}
+-
+-
+-##
+-## Playback Devices
+-##
+-
+-pcm.AndroidPlayback {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Earpiece {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 1}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headset {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headphone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 4}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Bluetooth {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 5}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Earpiece_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 1}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headset_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headphone_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 4}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Bluetooth_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 5}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headset_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 6}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headphone_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 6}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_fmradio {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "FM Radio Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headset_fmradio {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "FM Radio Path"	value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headset_fmradio {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "FM Radio Path"	value 6}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Earpiece_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 7}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 7}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headset_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 8}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headphone_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 9}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Bluetooth_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 5}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headset_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 10}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headphone_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Playback Path"	value 10}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Earpiece_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 1}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headset_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Headphone_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 4}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Bluetooth_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 5}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headset_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidPlayback_Speaker_Headphone_incall {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio playback"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Voice Call Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-
+-##
+-## Capture  device
+-##
+-
+-pcm.AndroidRecord {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Microphone {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Earpiece_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headset_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 1} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headphone_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Bluetooth_normal {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio capture"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 2} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_Headset_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_Headphone_normal {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio capture"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Playback Path"	value 2}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headset_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio capture"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Playback Path"	value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headphone_ringtone {
+-	type hooks
+-	slave.pcm {
+-		type hw
+-		card 0
+-		device 0	# Must be of type "digital audio capture"
+-	}
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			{name "Playback Path"	value 4}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-								# 6:SPK_HP 7:R_SPK 8:R_HP 9:R_HP_NO_MIC 10:R_SPK_HP
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Earpiece_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headset_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 1} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Headphone_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Bluetooth_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 2} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_Headset_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 1} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-			{name "Voice Call Path"		value 3}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+-
+-pcm.AndroidRecord_Speaker_Headphone_incall {
+-	type hooks
+-	slave.pcm default
+-	hooks.0 {
+-		type ctl_elems
+-		hook_args [
+-			# Enable audio output from the DSP
+-			{name "Capture MIC Path"	value 0} 	# 0:Main Mic 1:Ear MIC 2:BT MIC
+-			{name "Voice Call Path"		value 4}	# 0:OFF 1:RCV 2:SPK 3:HP 4:HP_NO_MIC 5:BT
+-		]
+-	}
+-}
+diff --git a/device.mk b/device.mk
+index 11d32d9..cbe1057 100644
+--- a/device.mk
++++ b/device.mk
+@@ -34,13 +34,6 @@
+ # and is used by people who have access to binary versions of the drivers
+ # but not to the original vendor tree. Be sure to update both.
+ 
+-# These are the hardware-specific configuration files
+-DEVICE_PACKAGE_OVERLAYS += \
+-	device/samsung/galaxysmtd/overlay
+-
+-PRODUCT_COPY_FILES := \
+-	device/samsung/galaxysmtd/asound.conf:system/etc/asound.conf
+-
+ # Prebuilt kl and kcm keymaps
+ PRODUCT_COPY_FILES += \
+ 	device/samsung/galaxysmtd/aries-keypad.kl:system/usr/keylayout/aries-keypad.kl \
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+deleted file mode 100644
+index bfd584d..0000000
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ /dev/null
+@@ -1,34 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!--
+-/*
+-** Copyright 2009, The Android Open Source Project
+-**
+-** Licensed under the Apache License, Version 2.0 (the "License");
+-** you may not use this file except in compliance with the License.
+-** You may obtain a copy of the License at
+-**
+-**     http://www.apache.org/licenses/LICENSE-2.0
+-**
+-** Unless required by applicable law or agreed to in writing, software
+-** distributed under the License is distributed on an "AS IS" BASIS,
+-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-** See the License for the specific language governing permissions and
+-** limitations under the License.
+-*/
+--->
+-
+-<!-- These resources are around just to allow their values to be customized
+-     for different hardware and product builds. -->
+-<resources>
+-    <!-- Hardware 'face' keys present on the device, stored as a bit field.
+-         This integer should equal the sum of the corresponding value for each
+-         of the following keys present:
+-             1 - Home
+-             2 - Back
+-             4 - Menu
+-             8 - Search
+-            16 - App switch
+-         For example, a device with Home, Back and Menu keys would set this
+-         config to 7. -->
+-    <integer name="config_deviceHardwareKeys">7</integer>
+-</resources>
+diff --git a/overlay/packages/apps/Settings/res/values/config.xml b/overlay/packages/apps/Settings/res/values/config.xml
+deleted file mode 100644
+index fb77e69..0000000
+--- a/overlay/packages/apps/Settings/res/values/config.xml
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!--
+-     Copyright (C) 2012 The CyanogenMod Project
+-
+-     Licensed under the Apache License, Version 2.0 (the "License");
+-     you may not use this file except in compliance with the License.
+-     You may obtain a copy of the License at
+-
+-           http://www.apache.org/licenses/LICENSE-2.0
+-
+-     Unless required by applicable law or agreed to in writing, software
+-     distributed under the License is distributed on an "AS IS" BASIS,
+-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-     See the License for the specific language governing permissions and
+-     limitations under the License.
+--->
+-
+-<resources xmlns:xliff="urnasis:names:tc:xliff:document:1.2 ">
+-    <bool name="config_show_homeWake">true</bool>
+-</resources>
+\ No newline at end of file
+-- 
+2.11.0
+
+
+From 24bf77a871b1aa7165098d3708e9b11e15487089 Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Tue, 8 Jan 2019 13:21:12 -0800
+Subject: [PATCH 2/2] Update system.prop for replicant RIL
+
+---
+ system.prop | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/system.prop b/system.prop
+index d5a3d09..c32d559 100644
+--- a/system.prop
++++ b/system.prop
+@@ -2,7 +2,7 @@
+ # system.prop for smdkc110
+ #
+ 
+-rild.libpath=/system/lib/libsec-ril.so
++rild.libpath=/system/lib/libsamsung-ril.so
+ rild.libargs=-d /dev/ttyS0
+ ro.sf.lcd_density=240
+ 
+-- 
+2.11.0
+

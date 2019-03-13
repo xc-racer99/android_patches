@@ -1,7 +1,7 @@
 From 00ed60d2d7343a6b1022d32360ececf743d4e330 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 17 Sep 2018 17:36:23 -0700
-Subject: [PATCH 1/5] Treat KEY_POWER as if it were KEY_ENTER
+Subject: [PATCH 1/7] Treat KEY_POWER as if it were KEY_ENTER
 
 ---
  default_device.cpp | 1 +
@@ -26,7 +26,7 @@ index 648eaec..8010b8c 100644
 From 34c85346f230a3a4bd57441bec84492ee12a72e8 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 17 Sep 2018 17:36:42 -0700
-Subject: [PATCH 2/5] minui: Allow custom recovery graphics
+Subject: [PATCH 2/7] minui: Allow custom recovery graphics
 
 Some devices don't work with the default one
 ---
@@ -58,7 +58,7 @@ index 43e0ad3..7f59ef4 100644
 From 092cb285d0a7769452060760ced3d9f4d27a95c1 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 17 Sep 2018 17:37:06 -0700
-Subject: [PATCH 3/5] Allow mounting ubifs as well
+Subject: [PATCH 3/7] Allow mounting ubifs as well
 
 ---
  roots.cpp | 3 ++-
@@ -85,7 +85,7 @@ index 113dba1..2719e67 100644
 From 2ded59c1c5a7ce5783a9bc01f47837a15da26124 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Mon, 17 Sep 2018 17:54:47 -0700
-Subject: [PATCH 4/5] Add option to mount /system
+Subject: [PATCH 4/7] Add option to mount /system
 
 ---
  default_device.cpp | 2 ++
@@ -153,7 +153,7 @@ index 43cd9da..93e3037 100644
 From aaeb674a93d7fd852fad347814bc01a860a81537 Mon Sep 17 00:00:00 2001
 From: Jonathan Bakker <xc-racer2@live.ca>
 Date: Fri, 21 Sep 2018 13:50:12 -0700
-Subject: [PATCH 5/5] Allow installing from SD card by default
+Subject: [PATCH 5/7] Allow installing from SD card by default
 
 ---
  default_device.cpp | 2 ++
@@ -179,6 +179,117 @@ index 9007e31..3a022e6 100644
            default: return NO_ACTION;
          }
      }
+-- 
+2.11.0
+
+
+From 9cb3f8e2d17dfb13a83081edbdcfe9c10cd5bc3e Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Wed, 13 Mar 2019 16:37:25 -0700
+Subject: [PATCH 6/7] [DNM] Add a create UBI partitions entry to recovery
+
+---
+ default_device.cpp | 14 ++++++++------
+ device.h           |  2 +-
+ recovery.cpp       | 10 ++++++++++
+ 3 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/default_device.cpp b/default_device.cpp
+index 3a022e6..4a648c1 100644
+--- a/default_device.cpp
++++ b/default_device.cpp
+@@ -26,11 +26,12 @@ static const char* HEADERS[] = { "Volume up/down to move highlight;",
+                                  NULL };
+ 
+ static const char* ITEMS[] =  {"reboot system now",
++                               "apply update from /sdcard",
+                                "apply update from ADB",
+                                "wipe data/factory reset",
+                                "wipe cache partition",
+                                "mount system partition",
+-                               "apply update from /sdcard",
++                               "create UBI partitions",
+                                NULL };
+ 
+ class DefaultUI : public ScreenRecoveryUI {
+@@ -74,11 +75,12 @@ class DefaultDevice : public Device {
+     BuiltinAction InvokeMenuItem(int menu_position) {
+         switch (menu_position) {
+           case 0: return REBOOT;
+-          case 1: return APPLY_ADB_SIDELOAD;
+-          case 2: return WIPE_DATA;
+-          case 3: return WIPE_CACHE;
+-          case 4: return MOUNT_SYSTEM;
+-          case 5: return APPLY_EXT;
++          case 1: return APPLY_EXT;
++          case 2: return APPLY_ADB_SIDELOAD;
++          case 3: return WIPE_DATA;
++          case 4: return WIPE_CACHE;
++          case 5: return MOUNT_SYSTEM;
++          case 6: return CREATE_UBI;
+           default: return NO_ACTION;
+         }
+     }
+diff --git a/device.h b/device.h
+index 2c387c2..d7e523a 100644
+--- a/device.h
++++ b/device.h
+@@ -67,7 +67,7 @@ class Device {
+ 
+     enum BuiltinAction { NO_ACTION, REBOOT, APPLY_EXT, APPLY_CACHE,
+                          APPLY_ADB_SIDELOAD, WIPE_DATA, WIPE_CACHE,
+-                         MOUNT_SYSTEM };
++                         MOUNT_SYSTEM, CREATE_UBI };
+ 
+     // Perform a recovery action selected from the menu.
+     // 'menu_position' will be the item number of the selected menu
+diff --git a/recovery.cpp b/recovery.cpp
+index 93e3037..cd879ca 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -880,6 +880,16 @@ prompt_and_wait(Device* device, int status) {
+                 } else {
+                         ui->Print("\nMounted /system\n");
+                 }
++                break;
++            case Device::CREATE_UBI:
++                status = system("/sbin/create_ubi_partitions.sh");
++                if (status) {
++                        ui->Print("\nFailed to run script\n");
++                        break;
++                } else {
++                        ui->Print("\nRan script to create UBI partitions\n");
++                }
++                break;
+         }
+     }
+ }
+-- 
+2.11.0
+
+
+From 85f73485911630f9b5b49152484c724eedd2d7ec Mon Sep 17 00:00:00 2001
+From: Jonathan Bakker <xc-racer2@live.ca>
+Date: Wed, 13 Mar 2019 16:37:46 -0700
+Subject: [PATCH 7/7] [DNM] Also return verified in recovery
+
+---
+ verifier.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/verifier.cpp b/verifier.cpp
+index 2f7a5a9..ef4c22a 100644
+--- a/verifier.cpp
++++ b/verifier.cpp
+@@ -38,6 +38,8 @@ extern RecoveryUI* ui;
+ int verify_file(const char* path, const Certificate* pKeys, unsigned int numKeys) {
+     ui->SetProgress(0.0);
+ 
++	return VERIFY_SUCCESS;
++
+     FILE* f = fopen(path, "rb");
+     if (f == NULL) {
+         LOGE("failed to open %s (%s)\n", path, strerror(errno));
 -- 
 2.11.0
 
